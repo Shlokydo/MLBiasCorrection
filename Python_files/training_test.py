@@ -7,7 +7,7 @@ import os
 import sys
 
 import helperfunctions as helpfunc
-import network_arch as net
+import new_network_arch as net
 
 mirrored_strategy = tf.distribute.MirroredStrategy()
 

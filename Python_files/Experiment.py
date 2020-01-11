@@ -46,6 +46,7 @@ if not os.path.exists(parameter_list['experiment_dir']):
     parameter_list['rec_lstm_dropout'] = 0.0
     parameter_list['unroll_lstm'] = False
     parameter_list['new_forecast'] = False 
+    parameter_list['stateful'] = False
 
     #Training related settings
     parameter_list['max_checkpoint_keep'] = 1
