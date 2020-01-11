@@ -231,7 +231,7 @@ def test(parameter_list, model):
     model_vfm[:] = new_forecast
     root_grp.close()
     
-def traintest(parameter_list, flag='train'):
+def traintest(parameter_list):
 
     print('\nGPU Available: {}\n'.format(tf.test.is_gpu_available()))
 
@@ -267,26 +267,15 @@ def traintest(parameter_list, flag='train'):
     #Checking if previous checkpoint exists
     if manager.latest_checkpoint:
         print("Restored from {}".format(manager.latest_checkpoint))
-
-        if flag == 'test':
-            print('Starting testing...')
-            test(parameter_list, model)
-            return parameter_list['global_epoch']
             
-        if flag == 'train':
-            print('Starting training from a restored point... \n')
-            return train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
+        print('Starting training from a restored point... \n')
+        return train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
         
     else:
         print("No checkpoint exists.")
         
-        if flag == 'test':
-             print('Cannot test as no checkpoint exists. Exiting...')
-             return parameter_list['global_epoch']
-        
-        if flag == 'train':
-            print('Initializing from scratch... \n')
-            parameter_list['global_epoch'] = train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
-            return parameter_list['global_epoch']
+        print('Initializing from scratch... \n')
+        parameter_list['global_epoch'] = train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
+        return parameter_list['global_epoch']
 
     print(learning_rate)

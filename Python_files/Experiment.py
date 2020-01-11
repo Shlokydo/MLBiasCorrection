@@ -7,6 +7,7 @@ import sys
 
 import helperfunctions as helpfunc
 import training_test as tntt
+import testing as tes
 
 #Parameter List
 parameter_list = {}
@@ -72,6 +73,9 @@ parameter_list['epochs'] = 400
 parameter_list['test_num_timesteps'] = 300
 parameter_list['flag'] = 'test'
 
-parameter_list['global_epoch'] = tntt.traintest(copy.deepcopy(parameter_list), flag = parameter_list['flag'])
+if flag == 'train':
+    parameter_list['global_epoch'] = tntt.traintest(copy.deepcopy(parameter_list))
+else:
+    parameter_list['global_epoch'] = tes.testing(copy.deepcopy(parameter_list))
 
 helpfunc.write_pickle(parameter_list, pickle_name)
