@@ -8,7 +8,7 @@ import sys
 import pickle
 
 import helperfuntions as helpfunc
-import network_arch as net
+import new_network_arch as net
 
 pickle_name = '' #Enter the location of the parameter_list pickle file name
 parameter_list = helpfunc.read_pickle(pickle_name)
@@ -16,17 +16,18 @@ parameter_list = helpfunc.read_pickle(pickle_name)
 def get_model():
   
   print('\nGetting the Tensorflow model\n')
+  parameter_list['stateful'] = True
+  model = net.rnn_model(parameter_list)
 
-  if os.path.exists(parameter_list['model_loc']):
-    print('\nLoading saved model.\n')
-    j_string = helpfunc.read_json(parameter_list['model_loc'])
-    model = tf.keras.models.model_from_json(j_string)
-  else:
-    print('\nModel json file does not exist. Exiting...')
-    sys.exit()
+  #Creating checkpoint instance
+  checkpoint = tf.train.Checkpoint(epoch = tf.Variable(0), model = model)
+  manager = tf.train.CheckpointManager(checkpoint, directory= parameter_list['checkpoint_dir'], 
+                                      max_to_keep= parameter_list['max_checkpoint_keep'])
+  checkpoint.restore(manager.latest_checkpoint).expect_partial()
 
-  checkpoint = tf.train.Checkpoint(model = model)
-  checkpoint.restore(tf.train.latest_checkpoint(parameter_list['checkpoint_dir']))
+  #Checking if previous checkpoint exists
+  if manager.latest_checkpoint:
+    print("Restored model from {}".format(manager.latest_checkpoint))
 
   return model
 
