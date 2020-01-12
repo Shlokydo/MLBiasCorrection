@@ -198,38 +198,6 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
         helpfunc.write_to_json(parameter_list['model_loc'], model_json)
 
     return parameter_list['global_epoch']
-
-def test(parameter_list, model):
-
-    root_grp = Dataset(parameter_list['netCDf_loc'], "a", format="NETCDF4")
-
-    #Extrating the datasets
-    analysis_init = root_grp["vam"]
-    forecast_init = root_grp["vfm"]
-
-    analysis_dataset = helpfunc.truth_label_creator(analysis_init[10:parameter_list['test_num_timesteps']])
-    forecast_dataset = helpfunc.locality_creator(forecast_init[10:parameter_list['test_num_timesteps']],
-                                                            parameter_list['locality'],
-                                                            parameter_list['xlocal'])
-    
-    new_forecast = np.zeros((analysis_dataset.shape[0], analysis_dataset.shape[1]), dtype='float32')
-
-    if parameter_list['make_recurrent']:
-        for i in range(forecast_dataset.shape[1]):
-            forecast = np.expand_dims(forecast_dataset[:,i,:], axis=1)
-            new_forecast[:,i] = np.squeeze(model(forecast))
-        new_forecast = np.transpose(new_forecast)
-    else:
-        for j in range(forecast_dataset.shape[0]):             
-                forecast = forecast_dataset[j,:,:]
-                new_forecast[j,:,:] = model(forecast)
-        new_forecast = np.transpose(np.squeeze(new_forecast))
-
-    test_time = root_grp.createDimension('tt', forecast_dataset.shape[1])
-    v_test_time = root_grp.createVariable('v_test_time', 'i', ('tt',))
-    model_vfm = root_grp.createVariable(parameter_list['experiment_name'] + '_vfm', 'f4', ('tt','x',))
-    model_vfm[:] = new_forecast
-    root_grp.close()
     
 def traintest(parameter_list):
 

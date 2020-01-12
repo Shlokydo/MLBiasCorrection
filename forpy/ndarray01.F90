@@ -5,6 +5,7 @@ program ndarray01
   integer, parameter :: NROWS = 2
   integer, parameter :: NCOLS = 3
   integer :: ierror, ii, jj
+  real, dimension(40) :: test 
   
   real :: matrix(NROWS, NCOLS)
   
@@ -17,7 +18,10 @@ program ndarray01
       matrix(ii, jj) = real(ii) * jj
     enddo
   enddo
-
+  
+  call RANDOM_NUMBER(test)
+  ierror = ndarray_create(arr, test)
+  ierror = print_py(arr)
   ! creates a numpy array with the same content as 'matrix'
   ierror = ndarray_create_ones(arr, [NROWS, NCOLS], dtype="int32")
   
