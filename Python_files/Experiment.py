@@ -8,12 +8,13 @@ import sys
 import helperfunctions as helpfunc
 import training_test as tntt
 import testing as tes
+import tensorflow as tf
 
 #Parameter List
 parameter_list = {}
 
 #Dataset and directories related settings
-parameter_list['netCDf_loc'] = "/home/mshlok/letkf/DATA_sample_long/X40F18/all_10/nocorr_I20/assim.nc"
+parameter_list['netCDf_loc'] = "/home/amemiya/assim.nc"
 parameter_list['xlocal'] = 3
 parameter_list['locality'] = 19
 parameter_list['num_timesteps'] = 30000
@@ -56,11 +57,11 @@ if not os.path.exists(parameter_list['experiment_dir']):
     parameter_list['num_epochs_checkpoint'] = 1
     parameter_list['summery_freq'] = 1
     parameter_list['global_epoch'] = 0
-    parameter_list['global_batch_size'] = 2048 * 4 
+    parameter_list['global_batch_size'] = 1024 
     parameter_list['val_size'] = 1
     parameter_list['lr_decay_steps'] = 300000
     parameter_list['lr_decay_rate'] = 0.70
-    parameter_list['learning_rate'] = 1e-3 * parameter_list['global_batch_size'] / 256
+    parameter_list['learning_rate'] = 1e-3 * parameter_list['global_batch_size'] / (256 * len(tf.config.experimental.list_physical_devices('GPU')))
 
 else:
     if os.path.isfile(pickle_name):
@@ -71,9 +72,9 @@ else:
 
 parameter_list['epochs'] = 400
 parameter_list['test_num_timesteps'] = 300
-parameter_list['flag'] = 'test'
+parameter_list['flag'] = 'train'
 
-if flag == 'train':
+if parameter_list['flag'] == 'train':
     parameter_list['global_epoch'] = tntt.traintest(copy.deepcopy(parameter_list))
 else:
     parameter_list['global_epoch'] = tes.testing(copy.deepcopy(parameter_list))

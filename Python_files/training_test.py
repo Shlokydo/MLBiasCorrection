@@ -172,8 +172,8 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
                     checkpoint.epoch.assign_add(1)
                     if int(checkpoint.epoch + 1) % parameter_list['num_epochs_checkpoint'] == 0:
                         save_path = manager.save()
-                        print("Saved checkpoint for epoch {}: {}".format(checkpoint.epoch, save_path))
-                        print("loss {:1.2f}".format(loss.numpy()))
+                        print("Saved checkpoint for epoch {}: {}".format(checkpoint.epoch.numpy(), save_path))
+                        print("loss {}".format(loss.numpy()))
 
                 if math.isnan(val_acc):
                     print('Breaking out as the validation loss is nan')
