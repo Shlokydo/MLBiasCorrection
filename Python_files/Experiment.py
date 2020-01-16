@@ -25,7 +25,6 @@ parameter_list['experiment_name'] = "L15_D10_5"
 parameter_list['experiment_dir'] = './n_experiments/' + parameter_list['experiment_name'] 
 parameter_list['checkpoint_dir'] = parameter_list['experiment_dir'] + '/checkpoint'
 parameter_list['log_dir'] = parameter_list['experiment_dir'] + '/log'
-parameter_list['model_loc'] = parameter_list['experiment_dir'] + '/model.json'
 
 pickle_name = parameter_list['checkpoint_dir'] + '/params.pickle'
 
@@ -62,6 +61,7 @@ if not os.path.exists(parameter_list['experiment_dir']):
     parameter_list['lr_decay_steps'] = 300000
     parameter_list['lr_decay_rate'] = 0.70
     parameter_list['learning_rate'] = 1e-3 * parameter_list['global_batch_size'] / (256 * len(tf.config.experimental.list_physical_devices('GPU')))
+    parameter_list['val_min'] = 1000
 
 else:
     if os.path.isfile(pickle_name):
@@ -70,12 +70,12 @@ else:
         print('\nNo pickle file exists at {}. Exiting....\n'.format(pickle_name))
         sys.exit()
 
-parameter_list['epochs'] = 400
+parameter_list['epochs'] = 10
 parameter_list['test_num_timesteps'] = 300
 parameter_list['flag'] = 'train'
 
 if parameter_list['flag'] == 'train':
-    parameter_list['global_epoch'] = tntt.traintest(copy.deepcopy(parameter_list))
+    parameter_list['global_epoch'], parameter_list['val_min'] = tntt.traintest(copy.deepcopy(parameter_list))
 else:
     parameter_list['global_epoch'] = tes.testing(copy.deepcopy(parameter_list))
 

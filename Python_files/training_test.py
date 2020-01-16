@@ -13,7 +13,7 @@ mirrored_strategy = tf.distribute.MirroredStrategy()
 
 def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer):
     
-    print("\nCreating Dataset\n")
+    print("\nProcessing Dataset\n")
 
     forecast_dataset, analysis_dataset = helpfunc.createdataset(parameter_list)
     if parameter_list['make_recurrent']:
@@ -106,7 +106,8 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
         global_step = 0
         global_step_val = 0
         val_min = 0
-        val_loss_min = 100
+        val_loss_min = parameter_list['val_min']
+        timer_tot = time.time()
 
         #Starting training
         with summary_writer.as_default():
@@ -191,13 +192,10 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
                                 print("loss {:1.2f}".format(loss.numpy()))
                                 break
 
-                print('Time for epoch (in minutes): %s' %((time.time() - start_time)/60))
-
-    if not(os.path.exists(parameter_list['model_loc'])):
-        model_json = model.to_json()
-        helpfunc.write_to_json(parameter_list['model_loc'], model_json)
-
-    return parameter_list['global_epoch']
+                print('Time for epoch (seconds): %s' %((time.time() - start_time)))
+    
+    print('\n Total trainig time (in minutes): {}'.format((time.time()-timer_tot)/60))
+    return parameter_list['global_epoch'], parameter_list['val_min']
     
 def traintest(parameter_list):
 
@@ -205,12 +203,7 @@ def traintest(parameter_list):
 
     #Get the Model
     with mirrored_strategy.scope():
-        if os.path.exists(parameter_list['model_loc']):
-            print('\nLoading saved model...\n')
-            j_string = helpfunc.read_json(parameter_list['model_loc'])
-            model = tf.keras.models.model_from_json(j_string)
-        else:
-            model = net.rnn_model(parameter_list)
+        model = net.rnn_model(parameter_list)
 
         #Defining Model compiling parameters
         learningrate_schedule = tf.keras.optimizers.schedules.ExponentialDecay(parameter_list['learning_rate'],
