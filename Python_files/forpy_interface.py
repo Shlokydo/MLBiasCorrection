@@ -7,14 +7,17 @@ import os
 import sys
 import pickle
 
-import helperfuntions as helpfunc
 import new_network_arch as net
+import helperfunctions as helpfunc
 
-pickle_name = '' #Enter the location of the parameter_list pickle file name
-parameter_list = helpfunc.read_pickle(pickle_name)
+def get_pickle():
+  pickle_name = './n_experiments/L15_D10_5/checkpoint/params.pickle' #Enter the location of the parameter_list pickle file name
+  parameter_list = helpfunc.read_pickle(pickle_name)
+  return parameter_list
 
-def get_model():
+def get_model(*args):
   
+  parameter_list = args[0]
   print('\nGetting the Tensorflow model\n')
   parameter_list['stateful'] = True
   model = net.rnn_model(parameter_list)
@@ -32,13 +35,17 @@ def get_model():
   return model
 
 def prediction(*args):
-  
-  model = args[0]
-  new_forecast = np.zeros(args[1].shape[1])
-  forecast_data = helpfunc.locality_creator(args[1], parameter_list['locality'], parameter_list['x_local'])
+ 
+  parameter_list = args[0]
+  model = args[1]
+  input_array = np.zeros((1,args[2].shape[0]))
+  input_array[0,:] = args[2]
+  new_forecast = np.zeros((input_array.shape[-1]))
+  forecast_data = helpfunc.locality_creator(input_array, parameter_list['locality'], parameter_list['xlocal'])
+  forecast_data = np.transpose(forecast_data, axes=(1,0,2))
 
   for i in range(forecast_data.shape[1]):
     forecast = np.expand_dims(forecast_data[:,i,:], axis = 1)
-    new_forecast[i] = np.squeeze(model(forecast))
+    new_forecast[i] = np.squeeze(model(forecast).numpy())
   
   return np.squeeze(new_forecast)

@@ -1,18 +1,17 @@
-program interface_lorenz
-
+program test_forpy
+  
   use forpy_mod
   implicit none
 
-  integer :: ierror
+  integer :: ierror, j
   type(module_py) :: fpi
-  type(object) :: r_vec, model
-  type(ndarray) :: vec, r_vec_cast
   type(list) :: paths
-  type(tuple) :: args
+  type(object) :: plist, model, m_out_obj
+  type(tuple) :: args0, args1
+  type(ndarray) :: m_inp_vec, m_out_vec
 
-  integer, parameter :: num_variable = 40 
   real, dimension(40) :: f_inp
-  real, dimension(:,:), pointer :: f_vec
+  real, dimension(:), pointer :: f_poi
 
   ierror = forpy_initialize()
 
@@ -21,29 +20,39 @@ program interface_lorenz
 
   ierror = import_py(fpi, "forpy_interface")
 
+  !Get the parameter list
+  ierror = call_py(plist, fpi, "get_pickle")
+
   !Get the restored model
-  ierror = call_py(model, fpi, "get_model")
+  ierror = tuple_create(args0, 1)
+  ierror = args0%setitem(0, plist)
+  ierror = call_py(model, fpi, "get_model", args0)
 
+  ierror = tuple_create(args1, 3)
+  ierror = args1%setitem(0, plist)
+  ierror = args1%setitem(1, model)
   !This part would go in the forecast-analysis loop
-    !Assuming one dimensional input fortran array containg all the variable
-    ierror = ndarray_create(vec, f_inp)
-  
-    !Sending the array for new_forecast
-    ierror = tuple_create(args, 2)
-    ierror = args%setitem(0, model)
-    ierror = args%setitem(1, vec)
-    ierror = call_py(r_vec, fpi, "prediction", args)
-    ierror = cast(r_vec_cast, r_vec)
-    !Transferring the data to fortran vector for data assimilation
-    ierror = r_vec_cast%get_data(f_vec)
-  
-  call args%destroy
-  call r_vec%destroy
-  call model%destroy
-  call paths%destroy
-  call vec%destroy
-  call r_vec_cast%destroy
+    !Assuming one dimensional input fortran array containing all the variables
+    call RANDOM_NUMBER(f_inp)
+    ierror = ndarray_create(m_inp_vec, f_inp)
+    ierror = args1%setitem(2, m_inp_vec)
+    ierror = call_py(m_out_obj, fpi, "prediction", args1)
+    ierror = cast(m_out_vec, m_out_obj)
+    ierror = print_py(m_out_vec)
 
+    !Transferring the data to fortran vector for data assimilation
+    ierror = m_out_vec%get_data(f_poi)
+  
+  call paths%destroy
+  call fpi%destroy
+  call plist%destroy
+  call model%destroy
+  call args0%destroy
+  call args1%destroy
+  call m_inp_vec%destroy
+  call m_out_obj%destroy
+  call m_out_vec%destroy
+  
   call forpy_finalize
 
-end program interface_lorenz
+end program test_forpy
