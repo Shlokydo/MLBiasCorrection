@@ -48,4 +48,4 @@ def prediction(*args):
     forecast = np.expand_dims(forecast_data[:,i,:], axis = 1)
     new_forecast[i] = np.squeeze(model(forecast).numpy())
   
-  return np.squeeze(new_forecast)
+  return new_forecast

@@ -11,6 +11,7 @@ program test_forpy
   type(ndarray) :: m_inp_vec, m_out_vec
 
   real, dimension(40) :: f_inp
+  real, dimension(40), asynchronous :: f_out
   real, dimension(:), pointer :: f_poi
 
   ierror = forpy_initialize()
@@ -31,6 +32,7 @@ program test_forpy
   ierror = tuple_create(args1, 3)
   ierror = args1%setitem(0, plist)
   ierror = args1%setitem(1, model)
+
   !This part would go in the forecast-analysis loop
     !Assuming one dimensional input fortran array containing all the variables
     call RANDOM_NUMBER(f_inp)
@@ -38,10 +40,10 @@ program test_forpy
     ierror = args1%setitem(2, m_inp_vec)
     ierror = call_py(m_out_obj, fpi, "prediction", args1)
     ierror = cast(m_out_vec, m_out_obj)
-    ierror = print_py(m_out_vec)
 
     !Transferring the data to fortran vector for data assimilation
     ierror = m_out_vec%get_data(f_poi)
+    print*, f_poi(4)
   
   call paths%destroy
   call fpi%destroy
