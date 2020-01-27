@@ -4,7 +4,7 @@ import numpy as np
 import numpy.linalg as LA             
 
 class LETKF:
-  def __init__(self, model, n = 40, f = 8, dt = 0.005, k = 20, localization_cut = 5, localization_len = 3, inflation = 1.0):
+  def __init__(self, model, n = 40, f = 8, dt = 0.005, amp_const_bias = 0, k = 20, localization_cut = 5, localization_len = 3, inflation = 1.0):
     """
     model: model constructor
     n: model size
@@ -20,13 +20,14 @@ class LETKF:
     self.f = f
     self.dt = dt
     self.k = k
+    self.amp = amp_const_bias
     self.localization_len = localization_len
     self.localization_cut = localization_cut
     self.infl = math.sqrt(inflation)
     # models
     self.ensemble = []
     for i in range(k):
-      self.ensemble.append(model(n, f, dt))
+      self.ensemble.append(model(n, f, dt, amp_const_bias=amp_const_bias))
     return
   
   def forward(self):

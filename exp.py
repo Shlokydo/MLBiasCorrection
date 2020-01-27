@@ -34,7 +34,7 @@ intv_nature=int(dt_nature/dt)
 #------------------------------------------------
 
 
-letkf = letkf.LETKF(model.Lorenz96, nx, k = nmem, localization_len = loc_scale, localization_cut = loc_cutoff , inflation = fact_infl)
+letkf = letkf.LETKF(model.Lorenz96, nx, amp_const_bias = amp, k = nmem, localization_len = loc_scale, localization_cut = loc_cutoff , inflation = fact_infl)
 # initial ensemble perturbation
 for i in range(nmem):
   nc = netCDF4.Dataset(expdir + '/spinup/init'+ '{0:02d}'.format(i) + '.nc','r',format='NETCDF4')
