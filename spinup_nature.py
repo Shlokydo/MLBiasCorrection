@@ -27,6 +27,3 @@ def spinup(inum):
 
 os.system('mkdir -p ' +  expdir + '/spinup')
 spinup(0)
-
-
-

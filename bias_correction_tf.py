@@ -7,18 +7,17 @@ import os
 import sys
 import pickle
 
-import new_network_arch as net
+import network_arch as net
 import helperfunctions as helpfunc
-
 
 def get_pickle():
   pickle_name = './n_experiments/L15_D10_5/checkpoint/params.pickle' #Enter the location of the parameter_list pickle file name
   parameter_list = helpfunc.read_pickle(pickle_name)
   return parameter_list
 
-def get_model(*args):
+def get_model(plist):
   
-  parameter_list = args[0]
+  parameter_list = plist
   print('\nGetting the Tensorflow model\n')
   parameter_list['stateful'] = True
   model = net.rnn_model(parameter_list)
@@ -35,12 +34,11 @@ def get_model(*args):
 
   return model
 
-def prediction(*args):
+def prediction(plist, model, inp):
  
-  parameter_list = args[0]
-  model = args[1]
-  input_array = np.zeros((1,args[2].shape[0]))
-  input_array[0,:] = args[2]
+  parameter_list = plist
+  input_array = np.zeros((1,inp.shape[0]))
+  input_array[0,:] = inp
   new_forecast = np.zeros((input_array.shape[-1]))
   forecast_data = helpfunc.locality_creator(input_array, parameter_list['locality'], parameter_list['xlocal'])
   forecast_data = np.transpose(forecast_data, axes=(1,0,2))

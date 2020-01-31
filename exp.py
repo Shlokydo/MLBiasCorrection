@@ -1,4 +1,3 @@
-
 #------------------------------------------------
 import os
 import math
@@ -88,7 +87,6 @@ for step in range(ntime_nature):
       if (step + 1) < length:
         xfmtempb=letkf.mean()
         xfm_raw.append(xfmtempb)
-
         for i in range(nmem):
           letkf.ensemble[i].x = bc.correct(letkf.ensemble[i].x)
 
@@ -153,5 +151,3 @@ vam_in[:,:] = xam
 vfm_in[:,:] = xfm
 vfm_raw_in[:,:] = xfm_raw
 nc.close 
-
-

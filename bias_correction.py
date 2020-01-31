@@ -44,6 +44,5 @@ class BiasCorrection:
       for j in range(self.dim_y):
         y_out[j] = y_in[j] + self.constb[j] + np.dot(self.coeffw[j],y_in)
     elif self.mode is 'tf':
-      y_out = bctf.prediction(self.plist,self.model,y_in)
+      y_out = bctf.prediction(self.plist, self.model, y_in)
     return y_out
- 

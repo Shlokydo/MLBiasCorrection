@@ -30,5 +30,3 @@ for i in range(nmem+1):
   spinup(i)
 
 os.system('mv ' + expdir + '/spinup/init' + '{0:02d}'.format(nmem) + '.nc ' + expdir + '/spinup/init.nc')
-
-
