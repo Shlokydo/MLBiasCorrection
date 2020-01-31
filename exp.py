@@ -1,3 +1,4 @@
+
 #------------------------------------------------
 import os
 import math
@@ -7,6 +8,7 @@ import netCDF4
 import model
 import letkf
 import param
+import bias_correction as BC
 
 #------------------------------------------------
 ### config
@@ -29,6 +31,11 @@ dt_assim    = param.param_exp['dt_assim']
 loc_scale  = param.param_letkf['localization_length_scale']
 loc_cutoff = param.param_letkf['localization_length_cutoff']
 fact_infl  = param.param_letkf['inflation_factor'] 
+
+
+bc_type = param.param_bc['bc_type']
+bc_alpha = param.param_bc['alpha']
+bc_gamma = param.param_bc['gamma']
 
 intv_nature=int(dt_nature/dt)
 #------------------------------------------------
@@ -59,11 +66,17 @@ r = np.ones(nx, dtype=np.float64) * obs_err_std
 h = np.identity(nx, dtype=np.float64)
 
 xfm = []
+xfm_raw = []
 xam = []
 xf  = []
 xa  = []
 time_assim = []
 ntime_nature=len(time_nature)
+
+bc=BC.BiasCorrection(bc_type,nx,bc_alpha,bc_gamma)
+
+icount=-10
+rmse_mean=0
 
 # MAIN LOOP
 for step in range(ntime_nature):
@@ -73,24 +86,41 @@ for step in range(ntime_nature):
     step_obs=int(np.where(time_obs == time_nature[step])[0])
     if (round(time_obs[step_obs]/dt_assim,4).is_integer()):  
       if (step + 1) < length:
-#        if step % 100 == 0:
-#          print("analysis ", step)
-#        else:
-#          print(".", end="")
+        xfmtempb=letkf.mean()
+        xfm_raw.append(xfmtempb)
+
+        for i in range(nmem):
+          letkf.ensemble[i].x = bc.correct(letkf.ensemble[i].x)
+
         xf.append(letkf.members())
-        xfm.append(letkf.mean())
+        xfmtemp=letkf.mean()
+        xfm.append(xfmtemp)
+
+     
         xa.append(letkf.analysis(h, obs[step_obs], r))
-        xam.append(letkf.mean())
+        xamtemp=letkf.mean()
+        xam.append(xamtemp)
         time_assim.append(round(time_obs[step_obs],4))
-        print('time ', round(time_obs[step_obs],4),' RMSE ', math.sqrt(((letkf.mean()-nature[step])**2).sum() /nx))
-       
+
+        bc.train(xfmtemp,xamtemp) 
+
+        rmse = math.sqrt(((letkf.mean()-nature[step])**2).sum() /nx)
+        sprd = math.sqrt((letkf.sprd()**2).sum()/nx)
+        if ( round(icount/10,4).is_integer() ):
+          print('time ', round(time_obs[step_obs],4),' RMSE ', rmse,' SPRD ',sprd)
+        icount = icount+1
+        if (icount > 0):
+          rmse_mean = (rmse + (icount-1) * rmse_mean)  / icount
         
 
 time_assim = np.array(time_assim, dtype=np.float64)
 xf  = np.array(xf,  dtype=np.float64)
 xa  = np.array(xa,  dtype=np.float64)
+xfm_raw = np.array(xfm_raw, dtype=np.float64)
 xfm = np.array(xfm, dtype=np.float64)
 xam = np.array(xam, dtype=np.float64)
+
+print('rmse mean =' , rmse_mean)
 
 print("done")
 
@@ -113,6 +143,7 @@ va_in = nc.createVariable('va',np.dtype('float64').char,('t','e','x'))
 vf_in = nc.createVariable('vf',np.dtype('float64').char,('t','e','x'))
 vam_in = nc.createVariable('vam',np.dtype('float64').char,('t','x'))
 vfm_in = nc.createVariable('vfm',np.dtype('float64').char,('t','x'))
+vfm_raw_in = nc.createVariable('vfm_raw',np.dtype('float64').char,('t','x'))
 x_in[:] = np.array(range(1,1+nx))
 e_in[:] = np.array(range(1,1+nmem))
 t_in[:] = np.round(time_assim,4)
@@ -120,6 +151,7 @@ va_in[:,:] = xa
 vf_in[:,:] = xf
 vam_in[:,:] = xam
 vfm_in[:,:] = xfm
+vfm_raw_in[:,:] = xfm_raw
 nc.close 
 
 
