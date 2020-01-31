@@ -51,6 +51,16 @@ class LETKF:
     x_mean /= self.k
     return x_mean
 
+  def sprd(self):
+    x_mean = self.mean()
+    x_sprd = (self.ensemble[0].x.copy() - x_mean)**2
+    for i in range(1, self.k):
+      x_sprd += (self.ensemble[i].x.copy() - x_mean)**2
+    x_sprd /= self.k
+    for j in range(self.n):
+      x_sprd[j] = math.sqrt(x_sprd[j])
+    return x_sprd
+
   def analysis(self, h, y, r):
     """
     This function performs LETKF.
@@ -102,7 +112,7 @@ class LETKF:
       # only the value at this location is updated
       x_a = self.letkf_core(x_ia, z_ia, hz_loc, y_hx_loc, r_inv_loc)
       for i in range(self.k):
-        self.ensemble[i].x[ia] = x_a[i]
+        self.ensemble[i].x[ia] = x_a[i].real
     return self.members()
 
   def search_obs(self, ia, h):
@@ -136,8 +146,8 @@ class LETKF:
     d_inv = np.identity(d.shape[0], dtype=np.float64)
     d_inv_sqrt = np.identity(d.shape[0], dtype=np.float64)
     for i in range(d.shape[0]):
-      d_inv[i, i] = 1.0 / d[i]
-      d_inv_sqrt[i, i] = 1.0 / math.sqrt(d[i])
+      d_inv[i, i] = 1.0 / d[i].real
+      d_inv_sqrt[i, i] = 1.0 / math.sqrt(d[i].real)
 
     w = u @ d_inv @ u.T @ hzT_r_inv @ y_hx  # mean update
     w += (u @ d_inv_sqrt @ u.T) * math.sqrt(self.k - 1) # ensemble update
