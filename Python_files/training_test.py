@@ -69,7 +69,7 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
             with tf.GradientTape() as tape:
                 
                 local_forecast, analysis = inputs
-                pred_analysis = model(local_forecast)
+                pred_analysis, _ = model(local_forecast)
 
                 #Calculating relative loss
                 loss = compute_loss(analysis, pred_analysis)
@@ -83,7 +83,7 @@ def train(parameter_list, model, checkpoint, manager, summary_writer, optimizer)
 
         def val_step(inputs):
             local_forecast_val, analysis_val = inputs
-            pred_analysis_val = model(local_forecast_val, training = False)
+            pred_analysis_val, _ = model(local_forecast_val, training = False)
 
             val_loss = compute_loss(analysis_val, pred_analysis_val)
             metric_val(analysis_val, pred_analysis_val)
