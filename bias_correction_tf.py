@@ -34,17 +34,31 @@ def get_model(plist):
 
   return model
 
-def prediction(plist, model, inp):
- 
-  parameter_list = plist
-  input_array = np.zeros((1,inp.shape[0]))
-  input_array[0,:] = inp
-  new_forecast = np.zeros((input_array.shape[-1]))
-  forecast_data = helpfunc.locality_creator(input_array, parameter_list['locality'], parameter_list['xlocal'])
-  forecast_data = np.transpose(forecast_data, axes=(1,0,2))
-
-  for i in range(forecast_data.shape[1]):
-    forecast = np.expand_dims(forecast_data[:,i,:], axis = 1)
-    new_forecast[i] = np.squeeze(model(forecast).numpy())
+class BCTF():
   
-  return new_forecast
+  def __init__(self, num_var):
+    self.plist = get_pickle() #Getting the parameter_list
+    self.model = get_model(self.plist)  #Getting the model
+    sta_indi = [tf.zeros((1, self.plist['LSTM_output'][i]), tf.float32) for i in range(self.plist['num_lstm_layers'])]
+    self.sta = [sta_indi for i in range(num_var)]
+    self.dim = num_var
+
+  def locality_gen(self, inp):
+    inp = np.expand_dims(inp, axis = 0)
+    a = helpfunc.locality_creator(inp, self.plist['locality'], self.plist['xlocal'])
+    return np.transpose(a, axes=(1,0,2))
+
+  #@tf.function
+  def predict(self, inp):
+    
+    new_forecast = tf.TensorArray(tf.float32, size = inp.shape[1], element_shape=(1, 1, 1))
+
+    for i in range(inp.shape[1]):
+      forecast = tf.expand_dims(inp[:,i,:], axis = 1)
+      new, new_state = self.model(forecast, self.sta[i])
+      new_forecast.write(i, new)
+      self.sta[i] = new_state 
+   
+    new_forecast = new_forecast.stack()
+    new_forecast = tf.squeeze(new_forecast)
+    return new_forecast.numpy()

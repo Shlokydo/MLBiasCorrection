@@ -2,6 +2,7 @@ import math
 import numpy as np                    
 import numpy.linalg as LA             
 import bias_correction_tf as bctf
+import param
 
 class BiasCorrection:
   def __init__(self, mode=None, dim_y = 0 , alpha = 0, gamma = 0):
@@ -16,8 +17,7 @@ class BiasCorrection:
       self.constb = np.zeros(dim_y, dtype=np.float64)
       self.coeffw = np.zeros((dim_y,dim_y), dtype=np.float64)
     if mode is 'tf':
-      self.plist = bctf.get_pickle()
-      self.model = bctf.get_model(self.plist)
+      self.tfm = bctf.BCTF(param.param_model['dimension'])
   
   def train(self,y_in,y_out):
     if self.mode is None:
@@ -44,5 +44,6 @@ class BiasCorrection:
       for j in range(self.dim_y):
         y_out[j] = y_in[j] + self.constb[j] + np.dot(self.coeffw[j],y_in)
     elif self.mode is 'tf':
-      y_out = bctf.prediction(self.plist, self.model, y_in)
+      y_in = self.tfm.locality_gen(y_in)
+      y_out = self.tfm.predict(y_in)
     return y_out
