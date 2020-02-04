@@ -24,11 +24,9 @@ class rnn_model(tf.keras.Model):
     def build(self, input_shape):
 
         self.gru_list = []
-        self.sta = []
-
         for i in range(self.num_layers):
 
-            self.lstm_list.append(tf.keras.layers.GRU(units = self.unit[i], 
+            self.gru_list.append(tf.keras.layers.GRU(units = self.unit[i], 
                                                     activation = self.acti,
                                                     recurrent_activation = self.recurrent_activ,
                                                     kernel_regularizer = self.kernel_regular,
@@ -37,12 +35,10 @@ class rnn_model(tf.keras.Model):
                                                     recurrent_dropout = self.recurrent_drop,
                                                     unroll = self.unro,
                                                     return_sequences = self.return_sequence,
-                                                    name = 'LSTM_{}'.format(i+1), 
+                                                    name = 'GRU_{}'.format(i+1), 
                                                     return_state=True))
-            self.sta.append(tf.zeros((input_shape[0], self.unit[i]), tf.float32))
-        
-        self.dense_list = []
 
+        self.dense_list = []
         for i in range(self.num_dense_layers - 1):
 
             self.dense_list.append(tf.keras.layers.Dense(units=self.dense_out[i],
@@ -55,19 +51,21 @@ class rnn_model(tf.keras.Model):
                                     kernel_regularizer = self.kernel_regular,
                                     activation = None,
                                     name = 'DENSE_OUTPUT'))
-
         self.dense_list.append(tf.keras.layers.ELU(1.5, name = 'ELU_output'))
 
-    def call(self, inputs, states = []):
-
+    def call(self, inputs, stat):
+        
+        sta = [tf.zeros((inputs.shape[0], self.unit[i]), tf.float32) for i in range(self.num_layers)]
         x = inputs
-        for i in tf.range(len(self.gru_list)):
+        for i in range(len(self.gru_list)):
             try:
-                x, states[i] = self.gru_list[i](x, initial_state = states[i])
+                x, stat[i] = self.gru_list[i](x, initial_state = stat[i])
             except:
-                x, states[i] = self.gru_list[i](x, initial_state = self.sta[i])
+                assert (len(stat) == 0), "State list is not empty"
+                x, dumm = self.gru_list[i](x, initial_state = sta[i])
+                stat.append(dumm)
 
-        for i in tf.range(self.dense_list):
+        for i in range(len(self.dense_list)):
             x = self.dense_list[i](x)
 
-        return (tf.expand_dims(inputs[:,:,int(self.locality/2)], axis=1) + x), states
+        return (tf.expand_dims(inputs[:,:,int(self.locality/2)], axis=1) + x), stat
