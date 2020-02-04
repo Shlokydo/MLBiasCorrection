@@ -33,10 +33,13 @@ time_now=0
 nature.append(l96c.x.copy())
 time_nature.append(time_now)
 
+irec=0
 for i in range(exp_length*intv_nature):
   l96c.runge_kutta() 
   time_now += dt
-  if (round(time_now/dt_nature,8).is_integer()):  
+  if (round(time_now/dt_nature,4).is_integer()):  
+    irec+=1
+    print(str(irec) + ' / ' +  str(exp_length))
     nature.append(l96c.x.copy())
     time_nature.append(round(time_now,8))
 nature = np.array(nature, dtype=np.float64)
