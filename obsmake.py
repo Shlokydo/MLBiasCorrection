@@ -1,6 +1,6 @@
 import os
 import netCDF4 
-import numpy as np                       # 数値計算用の配列
+import numpy as np
 import model 
 import param
 
@@ -28,8 +28,8 @@ ntime_nature=len(time_nature)
 for step in range(0,ntime_nature):
   time_now = time_nature[step]
 
-  if (round(time_now/dt_obs,8).is_integer()):
-    time_obs.append(time_now)
+  if (round(time_now/dt_obs,4).is_integer()):
+    time_obs.append(round(time_now,6))
     obs.append(list_obs[step])
 
 os.system('mkdir -p ' + expdir + '/' + obsdir)

@@ -41,7 +41,7 @@ for i in range(exp_length*intv_nature):
     irec+=1
     print(str(irec) + ' / ' +  str(exp_length))
     nature.append(l96c.x.copy())
-    time_nature.append(round(time_now,8))
+    time_nature.append(round(time_now,6))
 nature = np.array(nature, dtype=np.float64)
 time_nature = np.array(time_nature, dtype=np.float64)
 

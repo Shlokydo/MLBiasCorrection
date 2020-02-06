@@ -83,7 +83,7 @@ for step in range(ntime_nature):
     letkf.forward()
   if (np.count_nonzero(time_obs == time_nature[step])): 
     step_obs=int(np.where(time_obs == time_nature[step])[0])
-    if (round(time_obs[step_obs]/dt_assim,4).is_integer()):  
+    if (round(time_obs[step_obs]/dt_assim,2).is_integer()):  
       if (step + 1) < length:
         xfmtempb=letkf.mean()
         xfm_raw.append(xfmtempb)
