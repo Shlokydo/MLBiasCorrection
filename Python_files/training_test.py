@@ -83,7 +83,7 @@ def train(plist, model, checkpoint, manager, summary_writer, optimizer):
 
         def val_step(inputs):
             local_forecast_val, analysis_val = inputs
-            pred_analysis_val, _ = model(local_forecast_val, stat = [], training = False)
+            pred_analysis_val, _ = model(local_forecast_val, stat = [])
 
             val_loss = compute_loss(analysis_val, pred_analysis_val)
             metric_val(analysis_val, pred_analysis_val)
@@ -195,7 +195,7 @@ def train(plist, model, checkpoint, manager, summary_writer, optimizer):
                 print('Time for epoch (seconds): %s' %((time.time() - start_time)))
     
     print('\n Total trainig time (in minutes): {}'.format((time.time()-timer_tot)/60))
-    helpfunc.write_pickle(plist, pickle_name)
+    helpfunc.write_pickle(plist, plist['pickle_name'])
     return plist['global_epoch'], plist['val_min']
     
 def traintest(plist):

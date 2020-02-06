@@ -14,7 +14,7 @@ from sacred import Experiment
 from sacred.observers import MongoObserver
 
 exp = Experiment('Bias_Correction')
-exp.observers.append(MongoObserver(url = 'mongodb://localhost:27017', db_name = 'mlbias'))
+#exp.observers.append(MongoObserver(url = 'mongodb://localhost:27017', db_name = 'mlbias'))
 
 @exp.config
 def my_config():
@@ -34,7 +34,7 @@ def my_config():
     plist['checkpoint_dir'] = plist['experiment_dir'] + '/checkpoint'
     plist['log_dir'] = plist['experiment_dir'] + '/log'
 
-    pickle_name = plist['checkpoint_dir'] + '/params.pickle'
+    plist['pickle_name'] = plist['checkpoint_dir'] + '/params.pickle'
 
     if not os.path.exists(plist['experiment_dir']):
         os.makedirs(plist['log_dir'])
@@ -75,10 +75,10 @@ def my_config():
         plist['val_min'] = 1000
 
     else:
-        if os.path.isfile(pickle_name):
-            plist = helpfunc.read_pickle(pickle_name)
+        if os.path.isfile(plist['pickle_name']):
+            plist = helpfunc.read_pickle(plist['pickle_name'])
         else:
-            print('\nNo pickle file exists at {}. Exiting....\n'.format(pickle_name))
+            print('\nNo pickle file exists at {}. Exiting....\n'.format(plist['pickle_name']))
             sys.exit()
 
     plist['epochs'] = 10
