@@ -9,20 +9,20 @@ experiment_name = 'L15_D10_5'
 
 pickle_fileloc = './n_experiments/' + experiment_name + '/checkpoint' + '/params.pickle' 
 
-parameter_list = helpfunc.read_dataframe(pickle_fileloc)
+plist = helpfunc.read_dataframe(pickle_fileloc)
 
-root_grp = Dataset(parameter_list['netCDf_loc'], "a", format="NETCDF4")
+root_grp = Dataset(plist['netCDf_loc'], "a", format="NETCDF4")
 
 #Extrating the datasets
 analysis_init = root_grp["vam"]
 forecast_init = root_grp["vfm"]
-model_forecast_init = root_grp[parameter_list['experiment_name'] + '_vfm']
+model_forecast_init = root_grp[plist['experiment_name'] + '_vfm']
 
 #Randomly select five variables for plotting
 random_variables = np.random.randint(low = 0, high=40, size=5)
 
-plot_analysis = analysis_init[10:parameter_list['test_num_timesteps'], random_variables]
-plot_forecat = forecast_init[10:parameter_list['test_num_timesteps'], random_variables]
+plot_analysis = analysis_init[10:plist['test_num_timesteps'], random_variables]
+plot_forecat = forecast_init[10:plist['test_num_timesteps'], random_variables]
 plot_model_forecast = model_forecast_init[:,random_variables]
 
 def scatter_plot(plot_variable, variable_num, x1_label, x2_label, y_label, directory):
@@ -63,7 +63,7 @@ def line_plot(plot_variable, variable_num, directory):
     print('Saving image file: {}'.format(img_name))
     fig.savefig(img_name, format= 'png', dpi = 1200)
 
-image_dir = (parameter_list['experiment_dir'] + '/images')
+image_dir = (plist['experiment_dir'] + '/images')
 if not(os.path.exists(image_dir)):
     os.mkdir(image_dir)
 

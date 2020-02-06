@@ -80,28 +80,28 @@ def train_val_creator(dataset, val_size):
 
 def read_pickle(filename):
     pickle_in = open(filename, "rb")
-    parameter_list = pickle.load(pickle_in)
+    plist = pickle.load(pickle_in)
     pickle_in.close()
-    return parameter_list
+    return plist
 
 def write_pickle(dicty, filename):   
     pickle_out = open(filename, "wb")
     pickle.dump(dicty, pickle_out)
     pickle_out.close()
 
-def tfrecord(parameter_list):
+def tfrecord(plist):
     #Getting the NetCDF files
-    root_grp = Dataset(parameter_list['netCDf_loc'], "r", format="NETCDF4")
+    root_grp = Dataset(plist['netCDf_loc'], "r", format="NETCDF4")
 
     #Extrating the datasets
     analysis_init = root_grp["vam"]
     forecast_init = root_grp["vfm"]
 
-    analysis_dataset = truth_label_creator(analysis_init[:parameter_list['num_timesteps']])
-    forecast_dataset = locality_creator(forecast_init[:parameter_list['num_timesteps']], parameter_list['locality'], parameter_list['xlocal'])
+    analysis_dataset = truth_label_creator(analysis_init[:plist['num_timesteps']])
+    forecast_dataset = locality_creator(forecast_init[:plist['num_timesteps']], plist['locality'], plist['xlocal'])
 
-    write_TFRecord(parameter_list['tfrecord_analysis'], analysis_dataset, parameter_list['time_splits'])
-    write_TFRecord(parameter_list['tfrecord_forecast'], forecast_dataset, parameter_list['time_splits'])
+    write_TFRecord(plist['tfrecord_analysis'], analysis_dataset, plist['time_splits'])
+    write_TFRecord(plist['tfrecord_forecast'], forecast_dataset, plist['time_splits'])
 
 def write_to_json(loc, model):
     with open(loc, 'w') as json_file:
@@ -113,17 +113,17 @@ def read_json(loc):
     json_file.close()
     return content
 
-def createdataset(parameter_list):
+def createdataset(plist):
 
     #Getting the NetCDF files
-    root_grp = Dataset(parameter_list['netCDf_loc'], "r", format="NETCDF4")
+    root_grp = Dataset(plist['netCDf_loc'], "r", format="NETCDF4")
 
     #Extrating the datasets
     analysis_init = root_grp["vam"]
     forecast_init = root_grp["vfm"]
 
-    analysis_dataset = truth_label_creator(analysis_init[:parameter_list['num_timesteps']])
-    forecast_dataset = locality_creator(forecast_init[:parameter_list['num_timesteps']], parameter_list['locality'], parameter_list['xlocal'])
+    analysis_dataset = truth_label_creator(analysis_init[:plist['num_timesteps']])
+    forecast_dataset = locality_creator(forecast_init[:plist['num_timesteps']], plist['locality'], plist['xlocal'])
 
     return forecast_dataset, analysis_dataset
 
