@@ -30,8 +30,7 @@ class BiasCorrection:
       self.coeffw = (1-self.gamma) * self.coeffw 
       self.constb = self.constb + self.alpha * (y_out - y_in)
       for j in range(self.dim_y):
-        self.coeffw[j] = self.coeffw[j] + self.alpha * y_in[j] * (y_out - y_in) / (1 + (y_in**2).sum()) 
-#        self.coeffw[j] = self.coeffw[j] + self.alpha * y_in[j] * (y_out - y_in) 
+        self.coeffw[j] = self.coeffw[j] + self.alpha * y_in * (y_out[j] - y_in[j]) / (1 + (y_in**2).sum()) 
  
  
   def correct(self,y_in):  
