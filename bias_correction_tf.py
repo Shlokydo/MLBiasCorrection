@@ -48,14 +48,18 @@ class BCTF():
     a = helpfunc.locality_creator(inp, self.plist['locality'], self.plist['xlocal'])
     return np.transpose(a, axes=(1,0,2))
 
-  #@tf.function
+
   def predict(self, inp):
     
+    @tf.function
+    def pred(fore, st):
+      return self.model(fore, st)
+
     new_forecast = tf.TensorArray(tf.float32, size = inp.shape[1], element_shape=(1, 1, 1))
 
     for i in range(inp.shape[1]):
       forecast = tf.expand_dims(inp[:,i,:], axis = 1)
-      new, new_state = self.model(forecast, self.sta[i])
+      new, new_state = pred(forecast, self.sta[i])
       new_forecast.write(i, new)
       self.sta[i] = new_state 
    

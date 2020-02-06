@@ -59,13 +59,12 @@ class rnn_model(tf.keras.Model):
         x = inputs
         for i in range(len(self.gru_list)):
             try:
-                x, stat[i] = self.gru_list[i](x, initial_state = stat[i])
+                x, sta[i] = self.gru_list[i](x, initial_state = stat[i])
             except:
                 assert (len(stat) == 0), "State list is not empty"
-                x, dumm = self.gru_list[i](x, initial_state = sta[i])
-                stat.append(dumm)
+                x, sta[i] = self.gru_list[i](x, initial_state = sta[i])
 
         for i in range(len(self.dense_list)):
             x = self.dense_list[i](x)
 
-        return (tf.expand_dims(inputs[:,:,int(self.locality/2)], axis=1) + x), stat
+        return (tf.expand_dims(inputs[:,:,int(self.locality/2)], axis=1) + x), sta
