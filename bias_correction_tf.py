@@ -40,14 +40,14 @@ class BCTF():
     self.plist = get_pickle() #Getting the parameter_list
     self.model = get_model(self.plist)  #Getting the model
     sta_indi = [tf.zeros((1, self.plist['LSTM_output'][i]), tf.float32) for i in range(self.plist['num_lstm_layers'])]
-    self.sta = [sta_indi for i in range(num_var)]
+    self.state_h = [sta_indi for i in range(num_var)]
+    self.state_c = [sta_indi for i in range(num_var)]
     self.dim = num_var
 
   def locality_gen(self, inp):
     inp = np.expand_dims(inp, axis = 0)
     a = helpfunc.locality_creator(inp, self.plist['locality'], self.plist['xlocal'])
     return np.transpose(a, axes=(1,0,2))
-
 
   def predict(self, inp):
     
@@ -59,9 +59,8 @@ class BCTF():
 
     for i in range(inp.shape[1]):
       forecast = tf.expand_dims(inp[:,i,:], axis = 1)
-      new, new_state = pred(forecast, self.sta[i])
+      new, self.state_h[i], self.state_c[i] = pred(forecast, [self.state_h[i], self.state_c[i]])
       new_forecast.write(i, new)
-      self.sta[i] = new_state 
    
     new_forecast = new_forecast.stack()
     new_forecast = tf.squeeze(new_forecast)
