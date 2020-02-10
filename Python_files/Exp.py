@@ -5,6 +5,7 @@ import pandas as pd
 import os
 import sys
 import shutil
+import argparse
 
 import helperfunctions as helpfunc
 import training_test as tntt
@@ -13,7 +14,17 @@ import tensorflow as tf
 
 import optuna
 
-study = optuna.create_study(direction = 'minimize', study_name = 'RNN_bc', pruner = optuna.pruners.PercentilePruner(80.0))
+study = optuna.create_study(direction = 'minimize', study_name = 'RNN_bc', pruner = optuna.pruners.PercentilePruner(80.0), storage = 'sqlite:///mshlok/rnn_bc.db', load_if_exists = True)
+
+parser = argparse.ArgumentParser(description = 'Optuna Experiment Controller')
+
+parser.add_argument("--t", default = "optimize", type = str, choices = ["optimize", "best"], help = "Choose between optimization or training on best parameters (as of now)")
+parser.add_argument("--epochs", "-e",  default = 200, type = int, help = "Num of epochs for training")
+parser.add_argument("--num_trials", "-nt",  default = 10, type = int, help = "Num of Optuna trials")
+parser.add_argument("--netcdf_dataset", "-ncdf_loc", default = "../DATA/simple_test/test_obs/test_da/assim.nc", type = str, help = "Location of the netCDF dataset")
+parser.add_argument("--locality", "-l",  default = 9, type = int, help = "Locality size (including the main variable)")
+parser.add_argument("--time_splits", "-ts",  default = 5, type = int, help = "Num of RNN timesteps")
+args = parser.parse_args()
 
 def my_config(trial):
     #Parameter List
@@ -39,14 +50,16 @@ def my_config(trial):
     plist['l1_regu'] = 0.0
     plist['lstm_dropout'] = 0.0
     plist['rec_lstm_dropout'] = 0.0
+    
+    plist['learning_rate'] = trial.suggest_uniform('learning_rate', 5e-4, 5e-3)
 
     #Dataset and directories related settings
-    plist['netCDf_loc'] = "../DATA/simple_test/test_obs/test_da/assim.nc"
+    plist['netCDf_loc'] = args.netcdf_dataset
     plist['xlocal'] = 3
-    plist['locality'] = 9
+    plist['locality'] = args.locality
     plist['num_timesteps'] = 2020
-    plist['time_splits'] = 5
-    plist['experiment_name'] = 'L' + '_'.join(map(str, plist['LSTM_output'])) + '_D' + '_'.join(map(str, plist['dense_output']))
+    plist['time_splits'] = args.time_splits
+    plist['experiment_name'] = args.t + '_L' + '_'.join(map(str, plist['LSTM_output'])) + '_D' + '_'.join(map(str, plist['dense_output'])) + '_lr' + str(plist['learning_rate'])
     plist['experiment_dir'] = './n_experiments/' + plist['experiment_name'] 
     plist['checkpoint_dir'] = plist['experiment_dir'] + '/checkpoint'
     plist['log_dir'] = plist['experiment_dir'] + '/log'
@@ -66,8 +79,7 @@ def my_config(trial):
         plist['global_batch_size'] = 2048 
         plist['val_size'] = 1 * plist['global_batch_size']
         plist['lr_decay_steps'] = 300000
-        plist['lr_decay_rate'] = 0.70
-        plist['learning_rate'] = trial.suggest_uniform('learning_rate', 5e-4, 5e-3)
+        plist['lr_decay_rate'] = 0.10
         try:
             plist['learning_rate'] = plist['learning_rate'] * plist['global_batch_size'] / (128 * len(tf.config.experimental.list_physical_devices('GPU')))
         except:
@@ -82,7 +94,7 @@ def my_config(trial):
             shutil.rmtree(plist['experiment_dir'])
             sys.exit()
 
-    plist['epochs'] = 10
+    plist['epochs'] = args.epochs
     plist['test_num_timesteps'] = 300
     
     return plist
@@ -92,6 +104,12 @@ def objective(trial):
     plist = my_config(trial)
     return tntt.traintest(trial, copy.deepcopy(plist))
     
-study.optimize(objective, n_trials = 2)
-df = study.trials_dataframe()
-df.to_csv('optuna_exp.csv')
+if __name__ == "__main__":
+
+    if args.t == 'optimize':
+        study.optimize(objective, n_trials = args.num_trials)
+        df = study.trials_dataframe()
+        df.to_csv('optuna_exp.csv')
+    elif args.t == 'best':
+        best_case = optuna.trial.FixedTrial(study.best_params)
+        objective(best_case)

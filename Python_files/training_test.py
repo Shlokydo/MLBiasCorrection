@@ -62,8 +62,15 @@ def train(trial, plist, model, checkpoint, manager, summary_writer, optimizer):
     #Distributing the dataset
     val_dataset_dist = mirrored_strategy.experimental_distribute_dataset(dataset_val)
     train_dataset_dist = mirrored_strategy.experimental_distribute_dataset(dataset_train)
+    
+    try:
+        rname = 'opt_run'+ str(trial.number)
+    except:
+        rname = 'best'
 
-    with mlflow.start_run(run_name = trial.number):
+    with mlflow.start_run(run_name = rname):
+
+        mlflow.log_params(plist)
         mlflow.set_tags(trial.distributions)
 
         with mirrored_strategy.scope():
@@ -177,16 +184,16 @@ def train(trial, plist, model, checkpoint, manager, summary_writer, optimizer):
                     if not(epoch % plist['summery_freq']):
                         tf.summary.scalar('Loss_total_val', val_loss, step= (plist['global_epoch']))
                         tf.summary.scalar('Val_RMSE', v_metric, step= (plist['global_epoch']))
+
+                    #Report intermidiate objective value
+                    trial.report(val_loss, epoch)
+
+                    #Handle pruning based on the intermidiate value
+                    if trial.should_prune():
+                        raise optuna.exceptions.TrialPruned()
                         
                     if val_loss_min > val_loss:
                         val_loss_min = val_loss
-                      
-                        #Report intermidiate objective value
-                        trial.report(val_loss_min, epoch)
-
-                        #Handle pruning based on the intermidiate value
-                        if trial.should_prune():
-                            raise optuna.exceptions.TrialPruned()
 
                         checkpoint.epoch.assign_add(1)
                         save_path = manager.save()
@@ -223,6 +230,7 @@ def train(trial, plist, model, checkpoint, manager, summary_writer, optimizer):
 
         helpfunc.write_pickle(plist, plist['pickle_name'])
         mlflow.log_artifact(plist['pickle_name'])
+        mlflow.log_params(plist)
         mlflow.end_run()
 
     return val_loss_min
