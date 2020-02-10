@@ -6,6 +6,11 @@ import math
 import os
 import sys
 import optuna
+import mlflow
+import mlflow.tensorflow
+
+mlflow.tensorflow.autolog()
+mlflow.set_experiment('MLBiasCorrection')
 
 import helperfunctions as helpfunc
 import network_arch as net
@@ -58,154 +63,168 @@ def train(trial, plist, model, checkpoint, manager, summary_writer, optimizer):
     val_dataset_dist = mirrored_strategy.experimental_distribute_dataset(dataset_val)
     train_dataset_dist = mirrored_strategy.experimental_distribute_dataset(dataset_train)
 
-    #Loss and metric
-    with mirrored_strategy.scope():
-        
-        loss_func = tf.keras.losses.MeanSquaredError(reduction = tf.keras.losses.Reduction.SUM, name='LossMSE')
+    with mlflow.start_run(run_name = trial.number):
+        mlflow.set_tags(trial.distributions)
 
-        def compute_loss(labels, predictions):
-            per_example_loss = loss_func(labels, predictions)
-            return per_example_loss * (1.0 / (plist['global_batch_size'] * plist['time_splits']))
-       
-        def compute_metric(labels, predictions):
-            per_example_metric = tf.square(tf.subtract(labels, predictions))
-            per_example_metric = tf.reduce_sum(per_example_metric)
-            return tf.sqrt(per_example_metric * (1.0 / (plist['global_batch_size'] * plist['time_splits'])))
-
-        def train_step(inputs):
-            with tf.GradientTape() as tape:
-                
-                local_forecast, analysis = inputs
-                pred_analysis, _ = model(local_forecast, stat = [])
-
-                #Calculating relative loss
-                loss = compute_loss(analysis, pred_analysis)
-
-            gradients = tape.gradient(loss, model.trainable_variables)
-            optimizer.apply_gradients(zip(gradients, model.trainable_weights))
-
-            metric_train = compute_metric(analysis, pred_analysis)
-
-            return loss, metric_train
-
-        def val_step(inputs):
-            local_forecast_val, analysis_val = inputs
-            pred_analysis_val, _ = model(local_forecast_val, stat = [])
-
-            val_loss = compute_loss(analysis_val, pred_analysis_val)
-            metric_val = compute_metric(analysis_val, pred_analysis_val)
-
-            return val_loss, metric_val 
-
-        @tf.function
-        def distributed_train_step(inputs):
-            per_replica_losses, per_replica_metric = mirrored_strategy.experimental_run_v2(train_step, args=(inputs,))
-            loss = mirrored_strategy.reduce(tf.distribute.ReduceOp.SUM, per_replica_losses, axis=None)
-            met = mirrored_strategy.reduce(tf.distribute.ReduceOp.SUM, per_replica_metric, axis=None)
-            return loss, met
-
-        @tf.function
-        def distributed_val_step(inputs):
-            per_replica_losses, per_replica_metric = mirrored_strategy.experimental_run_v2(val_step, args=(inputs,))
-            loss =  mirrored_strategy.reduce(tf.distribute.ReduceOp.SUM, per_replica_losses, axis=None)
-            met =  mirrored_strategy.reduce(tf.distribute.ReduceOp.SUM, per_replica_metric, axis=None)
-            return loss, met
-        
-        #Initialing training variables
-        global_step = 0
-        global_step_val = 0
-        val_min = 0
-        val_loss_min = plist['val_min']
-        timer_tot = time.time()
-
-        #Starting training
-        with summary_writer.as_default():
-
-            epochs = plist['epochs']
-
-            for epoch in range(epochs):
-
-                start_time = time.time()
-
-                plist['global_epoch'] += 1
-
-                print('\nStart of epoch %d' %(plist['global_epoch']))
+        with mirrored_strategy.scope():
             
-                # Iterate over the batches of the dataset.
-                for step, inputs in enumerate(train_dataset_dist):
-                
-                    global_step += 1
+            loss_func = tf.keras.losses.MeanSquaredError(reduction = tf.keras.losses.Reduction.SUM, name='LossMSE')
 
-                    # Open a GradientTape to record the operations run
-                    # during the forward pass, which enables autodifferentiation.
-                    loss, t_metric = distributed_train_step(inputs)
+            def compute_loss(labels, predictions):
+                per_example_loss = loss_func(labels, predictions)
+                return per_example_loss * (1.0 / (plist['global_batch_size'] * plist['time_splits']))
+          
+            def compute_metric(labels, predictions):
+                per_example_metric = tf.square(tf.subtract(labels, predictions))
+                per_example_metric = tf.reduce_sum(per_example_metric)
+                return tf.sqrt(per_example_metric * (1.0 / (plist['global_batch_size'] * plist['time_splits'])))
 
-                    # Log of validation results  
-                    if (step % plist['log_freq']) == 0:
-                        print('Training loss (for one batch) at step %s: %s' % (step+1, float(loss)))
-                        
-                # Display metrics at the end of each epoch.
-                print('\nTraining loss at epoch end {}'.format(loss))
-                print('Training acc over epoch: %s ' % (float(t_metric)))
-                print('Seen so far: %s samples\n' % ((global_step) * plist['global_batch_size']))
-
-                if not(epoch % plist['summery_freq']):
-                    tf.summary.scalar('Loss_total', loss, step= plist['global_epoch'])
-                    tf.summary.scalar('Train_RMSE', t_metric, step= (plist['global_epoch']))
-
-                #Code for validation at the end of each epoch
-                for step_val, val_inputs in enumerate(val_dataset_dist):
-
-                    global_step_val += 1
-                    print(global_step_val)
-
-                    val_loss, v_metric = distributed_val_step(val_inputs)
-
-                    if (step_val % plist['log_freq']) == 0:
-                        print('Validation loss (for one batch) at step {}: {}'.format(step_val, val_loss))
-                        
-                print('Validation acc over epoch: %s \n' % (float(v_metric)))
-                
-                if not(epoch % plist['summery_freq']):
-                    tf.summary.scalar('Loss_total_val', val_loss, step= (plist['global_epoch']))
-                    tf.summary.scalar('Val_RMSE', v_metric, step= (plist['global_epoch']))
+            def train_step(inputs):
+                with tf.GradientTape() as tape:
                     
-                if val_loss_min > val_loss:
-                    val_loss_min = val_loss
-                   
-                    #Report intermidiate objective value
-                    trial.report(val_loss_min, epoch)
+                    local_forecast, analysis = inputs
+                    pred_analysis, _ = model(local_forecast, stat = [])
 
-                    #Handle pruning based on the intermidiate value
-                    if trial.should_prune():
-                        raise optuna.exceptions.TrialPruned()
+                    #Calculating relative loss
+                    loss = compute_loss(analysis, pred_analysis)
 
-                    checkpoint.epoch.assign_add(1)
-                    save_path = manager.save()
-                    print("Saved checkpoint for epoch {}: {}".format(checkpoint.epoch.numpy(), save_path))
-                    print("loss {}".format(loss.numpy()))
-                    plist['val_min'] = val_loss_min
+                gradients = tape.gradient(loss, model.trainable_variables)
+                optimizer.apply_gradients(zip(gradients, model.trainable_weights))
 
-                if math.isnan(v_metric):
-                    print('Breaking out as the validation loss is nan')
-                    break                
+                metric_train = compute_metric(analysis, pred_analysis)
 
-                if (epoch > 19):
-                    if not (epoch % plist['early_stop_patience']):
-                        if not (val_min):
-                            val_min = v_metric
-                        else:
-                            if val_min > v_metric:
+                return loss, metric_train
+
+            def val_step(inputs):
+                local_forecast_val, analysis_val = inputs
+                pred_analysis_val, _ = model(local_forecast_val, stat = [])
+
+                val_loss = compute_loss(analysis_val, pred_analysis_val)
+                metric_val = compute_metric(analysis_val, pred_analysis_val)
+
+                return val_loss, metric_val 
+
+            @tf.function
+            def distributed_train_step(inputs):
+                per_replica_losses, per_replica_metric = mirrored_strategy.experimental_run_v2(train_step, args=(inputs,))
+                loss = mirrored_strategy.reduce(tf.distribute.ReduceOp.SUM, per_replica_losses, axis=None)
+                met = mirrored_strategy.reduce(tf.distribute.ReduceOp.SUM, per_replica_metric, axis=None)
+                return loss, met
+
+            @tf.function
+            def distributed_val_step(inputs):
+                per_replica_losses, per_replica_metric = mirrored_strategy.experimental_run_v2(val_step, args=(inputs,))
+                loss =  mirrored_strategy.reduce(tf.distribute.ReduceOp.SUM, per_replica_losses, axis=None)
+                met =  mirrored_strategy.reduce(tf.distribute.ReduceOp.SUM, per_replica_metric, axis=None)
+                return loss, met
+            
+            #Initialing training variables
+            global_step = 0
+            global_step_val = 0
+            val_min = 0
+            val_loss_min = plist['val_min']
+            timer_tot = time.time()
+
+            #Starting training
+            with summary_writer.as_default():
+
+                epochs = plist['epochs']
+
+                for epoch in range(epochs):
+
+                    start_time = time.time()
+
+                    plist['global_epoch'] += 1
+
+                    print('\nStart of epoch %d' %(plist['global_epoch']))
+                
+                    # Iterate over the batches of the dataset.
+                    for step, inputs in enumerate(train_dataset_dist):
+                    
+                        global_step += 1
+
+                        # Open a GradientTape to record the operations run
+                        # during the forward pass, which enables autodifferentiation.
+                        loss, t_metric = distributed_train_step(inputs)
+
+                        # Log of validation results  
+                        if (step % plist['log_freq']) == 0:
+                            print('Training loss (for one batch) at step %s: %s' % (step+1, float(loss)))
+                            
+                    # Display metrics at the end of each epoch.
+                    print('\nTraining loss at epoch end {}'.format(loss))
+                    print('Training acc over epoch: %s ' % (float(t_metric)))
+                    print('Seen so far: %s samples\n' % ((global_step) * plist['global_batch_size']))
+
+                    if not(epoch % plist['summery_freq']):
+                        tf.summary.scalar('Loss_total', loss, step= plist['global_epoch'])
+                        tf.summary.scalar('Train_RMSE', t_metric, step= (plist['global_epoch']))
+                        tf.summary.scalar('Learning_rate', optimizer._decayed_lr(var_dtype = tf.float32).numpy(), step = plist['global_epoch'])
+
+                    #Code for validation at the end of each epoch
+                    for step_val, val_inputs in enumerate(val_dataset_dist):
+
+                        global_step_val += 1
+                        print(global_step_val)
+
+                        val_loss, v_metric = distributed_val_step(val_inputs)
+
+                        if (step_val % plist['log_freq']) == 0:
+                            print('Validation loss (for one batch) at step {}: {}'.format(step_val, val_loss))
+                            
+                    print('Validation acc over epoch: %s \n' % (float(v_metric)))
+                    
+                    if not(epoch % plist['summery_freq']):
+                        tf.summary.scalar('Loss_total_val', val_loss, step= (plist['global_epoch']))
+                        tf.summary.scalar('Val_RMSE', v_metric, step= (plist['global_epoch']))
+                        
+                    if val_loss_min > val_loss:
+                        val_loss_min = val_loss
+                      
+                        #Report intermidiate objective value
+                        trial.report(val_loss_min, epoch)
+
+                        #Handle pruning based on the intermidiate value
+                        if trial.should_prune():
+                            raise optuna.exceptions.TrialPruned()
+
+                        checkpoint.epoch.assign_add(1)
+                        save_path = manager.save()
+                        print("Saved checkpoint for epoch {}: {}".format(checkpoint.epoch.numpy(), save_path))
+                        print("loss {}".format(loss.numpy()))
+                        plist['val_min'] = val_loss_min
+
+                        mlflow.log_metric('Val_MSE', val_loss_min.numpy())
+                        mlflow.log_metric('Train_MSE', loss.numpy())
+                        mlflow.log_metric('Val_RMSE', v_metric.numpy())
+                        mlflow.log_metric('Train_RMSE', t_metric.numpy())
+                        mlflow.log_metric('LearningRate', optimizer._decayed_lr(var_dtype = tf.float32).numpy())
+                        mlflow.log_params(plist)
+
+                    if math.isnan(v_metric):
+                        print('Breaking out as the validation loss is nan')
+                        break                
+
+                    if (epoch > 19):
+                        if not (epoch % plist['early_stop_patience']):
+                            if not (val_min):
                                 val_min = v_metric
                             else:
-                                print('Breaking loop as validation accuracy not improving')
-                                print("loss {}".format(loss.numpy()))
-                                break
+                                if val_min > v_metric:
+                                    val_min = v_metric
+                                else:
+                                    print('Breaking loop as validation accuracy not improving')
+                                    print("loss {}".format(loss.numpy()))
+                                    break
 
-                print('Time for epoch (seconds): %s' %((time.time() - start_time)))
+                    print('Time for epoch (seconds): %s' %((time.time() - start_time)))
     
-    print('\n Total trainig time (in minutes): {}'.format((time.time()-timer_tot)/60))
-    helpfunc.write_pickle(plist, plist['pickle_name'])
+        print('\n Total trainig time (in minutes): {}'.format((time.time()-timer_tot)/60))
+
+        helpfunc.write_pickle(plist, plist['pickle_name'])
+        mlflow.log_artifact(plist['pickle_name'])
+        mlflow.end_run()
+
     return val_loss_min
     
 def traintest(trial, plist):

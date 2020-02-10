@@ -11,9 +11,6 @@ import training_test as tntt
 import testing as tes
 import tensorflow as tf
 
-from sacred import Experiment
-from sacred.observers import MongoObserver
-
 import optuna
 
 study = optuna.create_study(direction = 'minimize', study_name = 'RNN_bc', pruner = optuna.pruners.PercentilePruner(80.0))
@@ -70,10 +67,11 @@ def my_config(trial):
         plist['val_size'] = 1 * plist['global_batch_size']
         plist['lr_decay_steps'] = 300000
         plist['lr_decay_rate'] = 0.70
+        plist['learning_rate'] = trial.suggest_uniform('learning_rate', 5e-4, 5e-3)
         try:
-            plist['learning_rate'] = 1e-3 * plist['global_batch_size'] / (128 * len(tf.config.experimental.list_physical_devices('GPU')))
+            plist['learning_rate'] = plist['learning_rate'] * plist['global_batch_size'] / (128 * len(tf.config.experimental.list_physical_devices('GPU')))
         except:
-            plist['learning_rate'] = 1e-3 * plist['global_batch_size'] / (128)
+            plist['learning_rate'] = plist['learning_rate'] * plist['global_batch_size'] / (128)
         plist['val_min'] = 1000
 
     else:
@@ -86,8 +84,7 @@ def my_config(trial):
 
     plist['epochs'] = 10
     plist['test_num_timesteps'] = 300
-    plist['flag'] = 'train'
-
+    
     return plist
 
 def objective(trial):
