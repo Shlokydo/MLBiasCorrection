@@ -5,12 +5,13 @@ import time
 import math
 import os
 import sys
+import re
+
 import optuna
 import mlflow
 import mlflow.tensorflow
 
 mlflow.tensorflow.autolog()
-mlflow.set_experiment('MLBiasCorrection')
 
 import helperfunctions as helpfunc
 import network_arch as net
@@ -18,6 +19,9 @@ import network_arch as net
 mirrored_strategy = tf.distribute.MirroredStrategy()
 
 def train(trial, plist, model, checkpoint, manager, summary_writer, optimizer):
+   
+    ename = re.search('DATA/(.+?)/', plist['netCDf_loc'])
+    mlflow.set_experiment(ename.group(1))
     
     print("\nProcessing Dataset\n")
 
@@ -47,31 +51,31 @@ def train(trial, plist, model, checkpoint, manager, summary_writer, optimizer):
 
     tfdataset_analysis_val = helpfunc.create_tfdataset(analysis_dataset[-plist['val_size']:])
     tfdataset_forecast_val = helpfunc.create_tfdataset(forecast_dataset[-plist['val_size']:])
-
+    
     #Zipping the files
     dataset_train = tf.data.Dataset.zip((tfdataset_forecast_train, tfdataset_analysis_train))
     dataset_val = tf.data.Dataset.zip((tfdataset_forecast_val, tfdataset_analysis_val))
 
     #Shuffling the dataset
-    dataset_train = dataset_train.shuffle(1000000)
+    dataset_train = dataset_train.shuffle(1000000, seed = 1)
     dataset_train = dataset_train.batch(batch_size=plist['global_batch_size'], drop_remainder=True)
 
-    dataset_val = dataset_val.shuffle(1000000)
-    dataset_val = dataset_val.batch(batch_size=plist['global_batch_size'], drop_remainder=True)
+    dataset_val = dataset_val.shuffle(1000000, seed = 1)
+    dataset_val = dataset_val.batch(batch_size=plist['global_batch_size_v'], drop_remainder=True)
 
     #Distributing the dataset
     val_dataset_dist = mirrored_strategy.experimental_distribute_dataset(dataset_val)
     train_dataset_dist = mirrored_strategy.experimental_distribute_dataset(dataset_train)
     
     try:
-        rname = 'opt_run'+ str(trial.number)
+        rname = str(trial.study.study_name) + '_' + str(trial.number)
     except:
         rname = 'best'
 
     with mlflow.start_run(run_name = rname):
 
         mlflow.log_params(plist)
-        mlflow.set_tags(trial.distributions)
+        mlflow.set_tags(trial.params)
 
         with mirrored_strategy.scope():
             
@@ -93,7 +97,7 @@ def train(trial, plist, model, checkpoint, manager, summary_writer, optimizer):
                     pred_analysis, _ = model(local_forecast, stat = [])
 
                     #Calculating relative loss
-                    loss = compute_loss(analysis, pred_analysis)
+                    loss = compute_loss(analysis, pred_analysis) * plist['grad_mellow'] 
 
                 gradients = tape.gradient(loss, model.trainable_variables)
                 optimizer.apply_gradients(zip(gradients, model.trainable_weights))
@@ -163,37 +167,29 @@ def train(trial, plist, model, checkpoint, manager, summary_writer, optimizer):
                     print('Training acc over epoch: %s ' % (float(t_metric)))
                     print('Seen so far: %s samples\n' % ((global_step) * plist['global_batch_size']))
 
-                    if not(epoch % plist['summery_freq']):
-                        tf.summary.scalar('Loss_total', loss, step= plist['global_epoch'])
-                        tf.summary.scalar('Train_RMSE', t_metric, step= (plist['global_epoch']))
-                        tf.summary.scalar('Learning_rate', optimizer._decayed_lr(var_dtype = tf.float32).numpy(), step = plist['global_epoch'])
-
                     #Code for validation at the end of each epoch
                     for step_val, val_inputs in enumerate(val_dataset_dist):
 
                         global_step_val += 1
-                        print(global_step_val)
 
                         val_loss, v_metric = distributed_val_step(val_inputs)
 
                         if (step_val % plist['log_freq']) == 0:
-                            print('Validation loss (for one batch) at step {}: {}'.format(step_val, val_loss))
+                            print('Validation loss (for one batch) at step {}: {}'.format(step_val+1, val_loss))
                             
                     print('Validation acc over epoch: %s \n' % (float(v_metric)))
                     
-                    if not(epoch % plist['summery_freq']):
-                        tf.summary.scalar('Loss_total_val', val_loss, step= (plist['global_epoch']))
-                        tf.summary.scalar('Val_RMSE', v_metric, step= (plist['global_epoch']))
-
                     #Report intermidiate objective value
                     trial.report(val_loss, epoch)
+                    trial.report(v_metric, epoch)
+                    trial.report(t_metric, epoch)
 
                     #Handle pruning based on the intermidiate value
                     if trial.should_prune():
                         raise optuna.exceptions.TrialPruned()
                         
-                    if val_loss_min > val_loss:
-                        val_loss_min = val_loss
+                    if val_loss_min > v_metric:
+                        val_loss_min = v_metric
 
                         checkpoint.epoch.assign_add(1)
                         save_path = manager.save()
@@ -201,11 +197,12 @@ def train(trial, plist, model, checkpoint, manager, summary_writer, optimizer):
                         print("loss {}".format(loss.numpy()))
                         plist['val_min'] = val_loss_min
 
-                        mlflow.log_metric('Val_MSE', val_loss_min.numpy())
-                        mlflow.log_metric('Train_MSE', loss.numpy())
-                        mlflow.log_metric('Val_RMSE', v_metric.numpy())
-                        mlflow.log_metric('Train_RMSE', t_metric.numpy())
-                        mlflow.log_metric('LearningRate', optimizer._decayed_lr(var_dtype = tf.float32).numpy())
+                    if not(epoch % plist['summery_freq']):
+                        mlflow.log_metric('Val_MSE', val_loss_min.numpy(), step= (plist['global_epoch']))
+                        mlflow.log_metric('Train_MSE', loss.numpy(), step= (plist['global_epoch']))
+                        mlflow.log_metric('Val_RMSE', v_metric.numpy(), step= (plist['global_epoch']))
+                        mlflow.log_metric('Train_RMSE', t_metric.numpy(), step= (plist['global_epoch']))
+                        mlflow.log_metric('LearningRate', optimizer._decayed_lr(var_dtype = tf.float32).numpy(), step= (plist['global_epoch']))
                         mlflow.log_params(plist)
 
                     if math.isnan(v_metric):
@@ -230,6 +227,8 @@ def train(trial, plist, model, checkpoint, manager, summary_writer, optimizer):
 
         helpfunc.write_pickle(plist, plist['pickle_name'])
         mlflow.log_artifact(plist['pickle_name'])
+        mlflow.log_artifact('../param.py')
+        mlflow.log_artifact('./run_exp_optoti.sh')
         mlflow.log_params(plist)
         mlflow.end_run()
 

@@ -41,7 +41,7 @@ class rnn_model(tf.keras.Model):
                                     kernel_regularizer = self.kernel_regular,
                                     activation = None,
                                     name = 'DENSE_{}'.format(i+1)))
-            self.dense_list.append(tf.keras.layers.ELU(1.5, name='ELU_{}'.format(i+1)))
+            self.dense_list.append(tf.keras.layers.PReLU(alpha_initializer = tf.constant_initializer(0.25), shared_axes = [1], name='PReLU_{}'.format(i+1)))
 
     def call(self, inputs, stat):
         
