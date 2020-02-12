@@ -27,7 +27,8 @@ def locality_creator(init_dataset, locality_range, xlocal):
             index[-stop2:] = np.arange(0,stop2,1,dtype='int')
         output_dataset[:,i,:] = init_dataset[:,index]
 
-    return np.multiply(np.transpose(output_dataset,(1,0,2)), locality).astype('float32') 
+    #return np.multiply(np.transpose(output_dataset,(1,0,2)), locality).astype('float32') 
+    return np.transpose(output_dataset,(1,0,2))
 
 #For creating the truth label
 def truth_label_creator(init_dataset):
