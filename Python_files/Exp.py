@@ -41,7 +41,7 @@ def my_config(trial):
 
     plist['num_lstm_layers'] = trial.suggest_int('lstm_layers', 4, 5)
     plist['LSTM_output'] = []
-    plist['LSTM_output'].append(trial.suggest_int('lstm_' + str(0), 80, 150))
+    plist['LSTM_output'].append(trial.suggest_int('lstm_' + str(0), 80, 135))
     for i in range(plist['num_lstm_layers'] - 1):
         plist['LSTM_output'].append(trial.suggest_int('lstm_' + str(i+1), 80, plist['LSTM_output'][i]))
 
@@ -71,11 +71,11 @@ def my_config(trial):
     plist['val_size'] = 1 * plist['global_batch_size_v']
     plist['num_timesteps'] = int(((plist['global_batch_size'] * args.num_batches + plist['val_size']) * plist['time_splits']/ 16) + 100)
     plist['lr_decay_steps'] = 1000
-    plist['lr_decay_rate'] = trial.suggest_categorical('lrdr', [0.5, 0.55, 0.6])
+    plist['lr_decay_rate'] = trial.suggest_categorical('lrdr', [0.85, 0.95, 0.9])
     grad_mellow = trial.suggest_categorical('grad_mellow', [1, 0.1])
     plist['grad_mellow'] = grad_mellow
     plist['val_min'] = 1000
-    plist['learning_rate'] = 2e-3
+    plist['learning_rate'] = trial.suggest_loguniform('lr', 1e-3, 2e-3)
     try:
         plist['learning_rate'] = plist['learning_rate'] * plist['global_batch_size'] / (128 * len(tf.config.experimental.list_physical_devices('GPU')))
     except:
@@ -121,5 +121,6 @@ if __name__ == "__main__":
         df = study.trials_dataframe()
         df.to_csv('optuna_exp.csv')
     elif args.t == 'best':
-        best_case = optuna.trial.FixedTrial({'lstm_layers': 4, 'lstm_0': 128, 'lstm_1': 108, 'lstm_2': 107, 'lstm_3': 92, 'grad_mellow': 0.1, 'dense_layers': 1, 'dense_0': 20})
+        best_case = optuna.trial.FixedTrial(study.best_params)
+        #best_case = optuna.trial.FixedTrial({'lstm_layers': 4, 'lstm_0': 128, 'lstm_1': 108, 'lstm_2': 107, 'lstm_3': 92, 'grad_mellow': 0.1, 'dense_layers': 1, 'dense_0': 20})
         objective(best_case)

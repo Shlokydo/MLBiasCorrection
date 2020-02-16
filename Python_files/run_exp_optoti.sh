@@ -1,16 +1,16 @@
 #!/bin/bash
 
-loc="../DATA/16_256_8_10000_en_20_obe_0.1_infl_2.8/test_obs/test_da/assim.nc"
-ops="Trial_3"
+loc="../DATA/16_256_8_30000_en_20_obe_0.1_infl_2.8/test_obs/test_da/assim.nc"
+ops="Study_3_3"
 echo $loc
-python Exp.py --t optimize -e 500 -nt 10 -l 9 -ts 5 -ncdf_loc $loc -pvts 3940 -os $ops
+python Exp.py --t best -e 1500 -nt 100 -l 9 -ts 3 -ncdf_loc $loc -tb 65536 -nbs 2 -os $ops
 
 
 #usage: Exp.py [-h] [--t {optimize,best}] [--epochs EPOCHS]
 #              [--num_trials NUM_TRIALS] [--netcdf_dataset NETCDF_DATASET]
 #              [--locality LOCALITY] [--time_splits TIME_SPLITS]
 #
-#Optuna Experiment Controller
+#Optuna xperiment Controller
 #
 #optional arguments:
 #  -h, --help            show this help message and exit

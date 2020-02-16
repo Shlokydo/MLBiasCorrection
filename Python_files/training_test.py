@@ -79,7 +79,8 @@ def train(trial, plist, model, checkpoint, manager, summary_writer, optimizer):
 
         with mirrored_strategy.scope():
             
-            loss_func = tf.keras.losses.MeanSquaredError(reduction = tf.keras.losses.Reduction.SUM, name='LossMSE')
+            #loss_func = tf.keras.losses.MeanSquaredError(reduction = tf.keras.losses.Reduction.SUM, name='LossMSE')
+            loss_func = tf.keras.losses.MeanAbsoluteError(reduction = tf.keras.losses.Reduction.SUM, name='LossMSE')
 
             def compute_loss(labels, predictions):
                 per_example_loss = loss_func(labels, predictions)
@@ -212,10 +213,10 @@ def train(trial, plist, model, checkpoint, manager, summary_writer, optimizer):
                     if (epoch > 19):
                         if not (epoch % plist['early_stop_patience']):
                             if not (val_min):
-                                val_min = v_metric
+                                val_min = val_loss_min
                             else:
-                                if val_min > v_metric:
-                                    val_min = v_metric
+                                if val_min > val_loss_min:
+                                    val_min = val_loss_min
                                 else:
                                     print('Breaking loop as validation accuracy not improving')
                                     print("loss {}".format(loss.numpy()))
@@ -229,6 +230,9 @@ def train(trial, plist, model, checkpoint, manager, summary_writer, optimizer):
         mlflow.log_artifact(plist['pickle_name'])
         mlflow.log_artifact('../param.py')
         mlflow.log_artifact('./run_exp_optoti.sh')
+        mlflow.log_artifact('./Exp.py')
+        mlflow.log_artifact('./training_test.py')
+        mlflow.log_artifact('./network_arch.py')
         mlflow.log_params(plist)
         mlflow.end_run()
 
