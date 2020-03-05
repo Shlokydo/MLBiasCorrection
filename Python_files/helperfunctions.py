@@ -120,8 +120,18 @@ def createdataset(plist):
     root_grp = Dataset(plist['netCDf_loc'], "r", format="NETCDF4")
 
     #Extrating the datasets
-    analysis_init = root_grp["vam"]
-    forecast_init = root_grp["vfm"]
+    analysis_init = np.array(root_grp["vam"])
+    forecast_init = np.array(root_grp["vfm"])
+
+    d_analysis_init = analysis_init - forecast_init
+
+    ave_d_analysis = np.average(d_analysis_init,axis=0)
+    std_d_analysis = np.std(d_analysis_init,axis=0)
+    ave_forecast = np.average(forecast_init,axis=0)
+    std_forecast = np.std(forecast_init,axis=0)
+
+    d_analysis_init_norm = (d_analysis_init - ave_d_analysis) / std_d_analysis
+    forecast_init_norm = (forecast_init - ave_forecast) / std_forecast 
 
     analysis_dataset = truth_label_creator(analysis_init[:plist['num_timesteps']])
     forecast_dataset = locality_creator(forecast_init[:plist['num_timesteps']], plist['locality'], plist['xlocal'])

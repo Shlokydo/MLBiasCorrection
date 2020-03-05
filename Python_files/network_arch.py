@@ -57,4 +57,4 @@ class rnn_model(tf.keras.Model):
         for i in range(len(self.dense_list)):
             x = self.dense_list[i](x)
         
-        return (tf.expand_dims(inputs[:,:,int(self.locality/2)], axis=1) + x), [state_h, state_c]
+        return x, [state_h, state_c]

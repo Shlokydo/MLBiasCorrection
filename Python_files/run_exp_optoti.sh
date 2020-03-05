@@ -1,9 +1,9 @@
 #!/bin/bash
 
 loc="../DATA/16_256_8_30000_en_20_obe_0.1_infl_2.8/test_obs/test_da/assim.nc"
-ops="Study_3_3"
+ops="ttt"
 echo $loc
-python Exp.py --t best -e 1500 -nt 100 -l 9 -ts 3 -ncdf_loc $loc -tb 65536 -nbs 2 -os $ops
+python Exp.py --t optimize -e 1500 -nt 100 -l 9 -ts 3 -ncdf_loc $loc -tb 65536 -nbs 2 -os $ops
 
 
 #usage: Exp.py [-h] [--t {optimize,best}] [--epochs EPOCHS]
