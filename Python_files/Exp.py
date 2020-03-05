@@ -114,7 +114,12 @@ def objective(trial):
     return tntt.traintest(trial, copy.deepcopy(plist))
     
 if __name__ == "__main__":
-    study = optuna.create_study(direction = 'minimize', study_name = args.optuna_study, pruner = optuna.pruners.PercentilePruner(80.0), storage = 'sqlite:///mshlok/' + str(re.search('/DATA/(.+?)/', args.netcdf_dataset).group(1)) + '.db', load_if_exists = True)
+    
+    user = os.getlogin()
+    if user == 'mshlok':
+        study = optuna.create_study(direction = 'minimize', study_name = args.optuna_study, pruner = optuna.pruners.PercentilePruner(80.0), storage = 'sqlite:///mshlok/' + str(re.search('/DATA/(.+?)/', args.netcdf_dataset).group(1)) + '.db', load_if_exists = True)
+    elif user == 'amemiya':
+        study = optuna.create_study(direction = 'minimize', study_name = args.optuna_study, pruner = optuna.pruners.PercentilePruner(80.0), storage = 'sqlite:///amemiya/' + str(re.search('/DATA/(.+?)/', args.netcdf_dataset).group(1)) + '.db', load_if_exists = True)
 
     if args.t == 'optimize':
         study.optimize(objective, n_trials = args.num_trials)

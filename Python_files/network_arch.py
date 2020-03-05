@@ -53,8 +53,10 @@ class rnn_model(tf.keras.Model):
                 x, state_h[i], state_c[i] = self.lstm_list[i](x, initial_state = [stat[0][i], stat[1][i]])
             except:
                 x, state_h[i], state_c[i] = self.lstm_list[i](x, initial_state = [state_h[i], state_c[i]])
-
+        
+        #Using just the last time-step as input to the dense layer
+        x = x[:, -1, :] 
         for i in range(len(self.dense_list)):
             x = self.dense_list[i](x)
         
-        return (tf.expand_dims(inputs[:,:,int(self.locality/2)], axis=1) + x), [state_h, state_c]
+        return x, [state_h, state_c]

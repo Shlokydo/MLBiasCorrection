@@ -98,12 +98,12 @@ def train(trial, plist, model, checkpoint, manager, summary_writer, optimizer):
                     pred_analysis, _ = model(local_forecast, stat = [])
 
                     #Calculating relative loss
-                    loss = compute_loss(analysis, pred_analysis) * plist['grad_mellow'] 
+                    loss = compute_loss(analysis[:, -1, :], pred_analysis) * plist['grad_mellow'] 
 
                 gradients = tape.gradient(loss, model.trainable_variables)
                 optimizer.apply_gradients(zip(gradients, model.trainable_weights))
 
-                metric_train = compute_metric(analysis, pred_analysis)
+                metric_train = compute_metric(analysis[:, -1, :], pred_analysis)
 
                 return loss, metric_train
 
@@ -111,8 +111,8 @@ def train(trial, plist, model, checkpoint, manager, summary_writer, optimizer):
                 local_forecast_val, analysis_val = inputs
                 pred_analysis_val, _ = model(local_forecast_val, stat = [])
 
-                val_loss = compute_loss(analysis_val, pred_analysis_val)
-                metric_val = compute_metric(analysis_val, pred_analysis_val)
+                val_loss = compute_loss(analysis_val[:, -1, :], pred_analysis_val)
+                metric_val = compute_metric(analysis_val[:, -1, :], pred_analysis_val)
 
                 return val_loss, metric_val 
 
