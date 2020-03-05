@@ -39,17 +39,17 @@ def my_config(trial):
     #Network related settings
     plist['make_recurrent'] = True 
 
-    plist['num_lstm_layers'] = trial.suggest_int('lstm_layers', 4, 5)
+    plist['num_lstm_layers'] = trial.suggest_int('lstm_layers', 1, 2)
     plist['LSTM_output'] = []
-    plist['LSTM_output'].append(trial.suggest_int('lstm_' + str(0), 80, 135))
+    plist['LSTM_output'].append(trial.suggest_int('lstm_' + str(0), 20, 40))
     for i in range(plist['num_lstm_layers'] - 1):
-        plist['LSTM_output'].append(trial.suggest_int('lstm_' + str(i+1), 80, plist['LSTM_output'][i]))
+        plist['LSTM_output'].append(trial.suggest_int('lstm_' + str(i+1), 20, plist['LSTM_output'][i]))
 
-    plist['num_dense_layers'] = trial.suggest_int('dense_layers', 1, 2) 
+    plist['num_dense_layers'] = trial.suggest_int('dense_layers', 3, 5) 
     plist['dense_output'] = []
-    plist['dense_output'].append(trial.suggest_int('dense_' + str(0), 10, 40))
+    plist['dense_output'].append(trial.suggest_int('dense_' + str(0), 4, 20))
     for i in range(plist['num_dense_layers'] - 1):
-        plist['dense_output'].append(trial.suggest_int('dense_' + str(i+1), 10, plist['dense_output'][i]))
+        plist['dense_output'].append(trial.suggest_int('dense_' + str(i+1), 4, plist['dense_output'][i]))
     plist['dense_output'].append(1)
 
     plist['activation'] = 'tanh'

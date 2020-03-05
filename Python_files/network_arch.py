@@ -53,7 +53,9 @@ class rnn_model(tf.keras.Model):
                 x, state_h[i], state_c[i] = self.lstm_list[i](x, initial_state = [stat[0][i], stat[1][i]])
             except:
                 x, state_h[i], state_c[i] = self.lstm_list[i](x, initial_state = [state_h[i], state_c[i]])
-
+        
+        #Only using last time-step as the input to the dense layer
+        x = x[:, -1, :]
         for i in range(len(self.dense_list)):
             x = self.dense_list[i](x)
         
