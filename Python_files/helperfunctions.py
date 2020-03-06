@@ -138,7 +138,7 @@ def createdataset(plist):
     analysis_dataset = truth_label_creator(analysis_init[:plist['num_timesteps']])
     forecast_dataset = locality_creator(forecast_init[:plist['num_timesteps']], plist['locality'], plist['xlocal'])
 
-    return forecast_dataset, analysis_dataset
+    return forecast_dataset, analysis_dataset, ave_d_analysis, std_d_analysis, ave_forecast, std_forecast
 
 #Code for creating Tensorflow Dataset:
 def create_tfdataset(initial_dataset):
