@@ -18,54 +18,10 @@ import network_arch as net
 
 mirrored_strategy = tf.distribute.MirroredStrategy()
 
-def train(trial, plist, model, checkpoint, manager, summary_writer, optimizer):
+def train(trial, plist, model, checkpoint, manager, summary_writer, optimizer, train_dataset_dist, val_dataset_dist):
    
     ename = re.search('DATA/(.+?)/', plist['netCDf_loc'])
     mlflow.set_experiment(ename.group(1))
-    
-    print("\nProcessing Dataset\n")
-
-    forecast_dataset, analysis_dataset = helpfunc.createdataset(plist)
-    if plist['make_recurrent']:
-        analysis_split = helpfunc.split_sequences(analysis_dataset[:,100:,:], plist['time_splits'])
-        analysis_split = np.transpose(analysis_split, (1,0,2,3))
-
-        forecast_split = helpfunc.split_sequences(forecast_dataset[:,100:,:], plist['time_splits'])
-        forecast_split = np.transpose(forecast_split, (1,0,2,3))
-
-        analysis_dataset = np.reshape(analysis_split, (analysis_split.shape[0]*analysis_split.shape[1],
-                                plist['time_splits'], 1))
-        forecast_dataset = np.reshape(forecast_split, (forecast_split.shape[0]*forecast_split.shape[1],
-                                plist['time_splits'], plist['locality']))
-
-    else:
-        plist['time_splits'] = 1
-        analysis_dataset = np.reshape(analysis_dataset, (analysis_dataset.shape[0]*analysis_dataset.shape[1],
-                                      1))
-        forecast_dataset = np.reshape(forecast_dataset, (forecast_dataset.shape[0]*forecast_dataset.shape[1],
-                                      plist['locality']))
-
-
-    tfdataset_analysis_train = helpfunc.create_tfdataset(analysis_dataset[:-plist['val_size']])
-    tfdataset_forecast_train = helpfunc.create_tfdataset(forecast_dataset[:-plist['val_size']])
-
-    tfdataset_analysis_val = helpfunc.create_tfdataset(analysis_dataset[-plist['val_size']:])
-    tfdataset_forecast_val = helpfunc.create_tfdataset(forecast_dataset[-plist['val_size']:])
-    
-    #Zipping the files
-    dataset_train = tf.data.Dataset.zip((tfdataset_forecast_train, tfdataset_analysis_train))
-    dataset_val = tf.data.Dataset.zip((tfdataset_forecast_val, tfdataset_analysis_val))
-
-    #Shuffling the dataset
-    dataset_train = dataset_train.shuffle(1000000, seed = 1)
-    dataset_train = dataset_train.batch(batch_size=plist['global_batch_size'], drop_remainder=True)
-
-    dataset_val = dataset_val.shuffle(1000000, seed = 1)
-    dataset_val = dataset_val.batch(batch_size=plist['global_batch_size_v'], drop_remainder=True)
-
-    #Distributing the dataset
-    val_dataset_dist = mirrored_strategy.experimental_distribute_dataset(dataset_val)
-    train_dataset_dist = mirrored_strategy.experimental_distribute_dataset(dataset_train)
     
     try:
         rname = str(trial.study.study_name) + '_' + str(trial.number)
@@ -242,6 +198,51 @@ def traintest(trial, plist):
 
     print('\nGPU Available: {}\n'.format(tf.test.is_gpu_available()))
 
+    #Get dataset
+    print("\nProcessing Dataset\n")
+
+    forecast_dataset, analysis_dataset, a_a, s_a, a_f, s_f = helpfunc.createdataset(plist)
+    if plist['make_recurrent']:
+        analysis_split = helpfunc.split_sequences(analysis_dataset[:,100:,:], plist['time_splits'])
+        analysis_split = np.transpose(analysis_split, (1,0,2,3))
+
+        forecast_split = helpfunc.split_sequences(forecast_dataset[:,100:,:], plist['time_splits'])
+        forecast_split = np.transpose(forecast_split, (1,0,2,3))
+
+        analysis_dataset = np.reshape(analysis_split, (analysis_split.shape[0]*analysis_split.shape[1],
+                                plist['time_splits'], 1))
+        forecast_dataset = np.reshape(forecast_split, (forecast_split.shape[0]*forecast_split.shape[1],
+                                plist['time_splits'], plist['locality']))
+
+    else:
+        plist['time_splits'] = 1
+        analysis_dataset = np.reshape(analysis_dataset, (analysis_dataset.shape[0]*analysis_dataset.shape[1],
+                                      1))
+        forecast_dataset = np.reshape(forecast_dataset, (forecast_dataset.shape[0]*forecast_dataset.shape[1],
+                                      plist['locality']))
+
+
+    tfdataset_analysis_train = helpfunc.create_tfdataset(analysis_dataset[:-plist['val_size']])
+    tfdataset_forecast_train = helpfunc.create_tfdataset(forecast_dataset[:-plist['val_size']])
+
+    tfdataset_analysis_val = helpfunc.create_tfdataset(analysis_dataset[-plist['val_size']:])
+    tfdataset_forecast_val = helpfunc.create_tfdataset(forecast_dataset[-plist['val_size']:])
+    
+    #Zipping the files
+    dataset_train = tf.data.Dataset.zip((tfdataset_forecast_train, tfdataset_analysis_train))
+    dataset_val = tf.data.Dataset.zip((tfdataset_forecast_val, tfdataset_analysis_val))
+
+    #Shuffling the dataset
+    dataset_train = dataset_train.shuffle(1000000, seed = 1)
+    dataset_train = dataset_train.batch(batch_size=plist['global_batch_size'], drop_remainder=True)
+
+    dataset_val = dataset_val.shuffle(1000000, seed = 1)
+    dataset_val = dataset_val.batch(batch_size=plist['global_batch_size_v'], drop_remainder=True)
+
+    #Distributing the dataset
+    val_dataset_dist = mirrored_strategy.experimental_distribute_dataset(dataset_val)
+    train_dataset_dist = mirrored_strategy.experimental_distribute_dataset(dataset_train)
+
     #Get the Model
     with mirrored_strategy.scope():
         model = net.rnn_model(plist)
@@ -255,7 +256,11 @@ def traintest(trial, plist):
         optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
 
         #Defining the checkpoint instance
-        checkpoint = tf.train.Checkpoint(epoch = tf.Variable(0), model = model)
+        a_a = tf.Variable(a_a, dtype = tf.float32)
+        s_a = tf.Variable(s_a, dtype = tf.float32)
+        a_f = tf.Variable(a_f, dtype = tf.float32)
+        s_f = tf.Variable(s_f, dtype = tf.float32)
+        checkpoint = tf.train.Checkpoint(epoch = tf.Variable(0), model = model, a_a = a_a, s_a = s_a, a_f = a_f, s_f = s_f)
 
     #Creating summary writer
     summary_writer = tf.summary.create_file_writer(logdir= plist['log_dir'])
@@ -271,12 +276,12 @@ def traintest(trial, plist):
         print("Restored from {}".format(manager.latest_checkpoint))
             
         print('Starting training from a restored point... \n')
-        return train(trial, plist, model, checkpoint, manager, summary_writer, optimizer)
+        return train(trial, plist, model, checkpoint, manager, summary_writer, optimizer, train_dataset_dist, val_dataset_dist)
         
     else:
         print("No checkpoint exists.")
         
         print('Initializing from scratch... \n')
-        return train(trial, plist, model, checkpoint, manager, summary_writer, optimizer)
+        return train(trial, plist, model, checkpoint, manager, summary_writer, optimizer, train_dataset_dist, val_dataset_dist)
 
     print(learning_rate)
