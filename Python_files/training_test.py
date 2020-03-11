@@ -54,12 +54,18 @@ def train(trial, plist, model, checkpoint, manager, summary_writer, optimizer, t
                     pred_analysis, _ = model(local_forecast, stat = [])
 
                     #Calculating relative loss
-                    loss = compute_loss(analysis[:, -1, :], pred_analysis) * plist['grad_mellow'] 
+                    try:
+                        loss = compute_loss(analysis[:, -1, :], pred_analysis) * plist['grad_mellow'] 
+                    except:
+                        loss = compute_loss(analysis, pred_analysis) * plist['grad_mellow']
 
                 gradients = tape.gradient(loss, model.trainable_variables)
                 optimizer.apply_gradients(zip(gradients, model.trainable_weights))
 
-                metric_train = compute_metric(analysis[:, -1, :], pred_analysis)
+                try:
+                    metric_train = compute_metric(analysis[:, -1, :], pred_analysis)
+                except:
+                    metric_train = compute_metric(analysis, pred_analysis)
 
                 return loss, metric_train
 
@@ -67,10 +73,17 @@ def train(trial, plist, model, checkpoint, manager, summary_writer, optimizer, t
                 local_forecast_val, analysis_val = inputs
                 pred_analysis_val, _ = model(local_forecast_val, stat = [])
 
-                val_loss = compute_loss(analysis_val[:, -1, :], pred_analysis_val)
-                metric_val = compute_metric(analysis_val[:, -1, :], pred_analysis_val)
+                try:
+                    loss = compute_loss(analysis_val[:, -1, :], pred_analysis_val) * plist['grad_mellow'] 
+                except:
+                    loss = compute_loss(analysis_val, pred_analysis_val) * plist['grad_mellow']
 
-                return val_loss, metric_val 
+                try:
+                    metric_val = compute_metric(analysis_val[:, -1, :], pred_analysis_val)
+                except:
+                    metric_val = compute_metric(analysis_val, pred_analysis_val)
+
+                return loss, metric_val 
 
             @tf.function
             def distributed_train_step(inputs):
@@ -151,7 +164,7 @@ def train(trial, plist, model, checkpoint, manager, summary_writer, optimizer, t
                         checkpoint.epoch.assign_add(1)
                         save_path = manager.save()
                         print("Saved checkpoint for epoch {}: {}".format(checkpoint.epoch.numpy(), save_path))
-                        print("loss {}".format(loss.numpy()))
+                        print("\nRMSE {}\n".format(v_metric.numpy()))
                         plist['val_min'] = val_loss_min
 
                     if not(epoch % plist['summery_freq']):
@@ -216,10 +229,8 @@ def traintest(trial, plist):
 
     else:
         plist['time_splits'] = 1
-        analysis_dataset = np.reshape(analysis_dataset, (analysis_dataset.shape[0]*analysis_dataset.shape[1],
-                                      1))
-        forecast_dataset = np.reshape(forecast_dataset, (forecast_dataset.shape[0]*forecast_dataset.shape[1],
-                                      plist['locality']))
+        analysis_dataset = np.reshape(analysis_dataset, (analysis_dataset.shape[0]*analysis_dataset.shape[1], 1))
+        forecast_dataset = np.reshape(forecast_dataset, (forecast_dataset.shape[0]*forecast_dataset.shape[1], plist['locality']))
 
 
     tfdataset_analysis_train = helpfunc.create_tfdataset(analysis_dataset[:-plist['val_size']])
@@ -248,11 +259,14 @@ def traintest(trial, plist):
         model = net.rnn_model(plist)
 
         #Defining Model compiling parameters
-        learningrate_schedule = tf.keras.optimizers.schedules.ExponentialDecay(plist['learning_rate'],
-                                                                      decay_steps = plist['lr_decay_steps'],
-                                                                      decay_rate = plist['lr_decay_rate'],
-                                                                      staircase = False)
-        learning_rate = learningrate_schedule 
+        if plist['lr_decay_rate']:
+            learningrate_schedule = tf.keras.optimizers.schedules.ExponentialDecay(plist['learning_rate'],
+                                                                          decay_steps = plist['lr_decay_steps'],
+                                                                          decay_rate = plist['lr_decay_rate'],
+                                                                          staircase = False)
+            learning_rate = learningrate_schedule 
+        else:
+            learning_rate = plist['learning_rate']
         optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
 
         #Defining the checkpoint instance

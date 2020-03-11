@@ -21,6 +21,7 @@ import optuna
 parser = argparse.ArgumentParser(description = 'Optuna Experiment Controller')
 
 parser.add_argument("--t", default = "optimize", type = str, choices = ["optimize", "best"], help = "Choose between optimization or training on best parameters (as of now)")
+parser.add_argument("--m_recu", "-mr", default = "True", type = str, choices = ["True", "False"], help = "Use LSTM layers or not")
 parser.add_argument("--epochs", "-e",  default = 200, type = int, help = "Num of epochs for training")
 parser.add_argument("--num_trials", "-nt",  default = 10, type = int, help = "Num of Optuna trials")
 parser.add_argument("--netcdf_dataset", "-ncdf_loc", default = "../DATA/simple_test/test_obs/test_da/assim.nc", type = str, help = "Location of the netCDF dataset")
@@ -37,13 +38,17 @@ def my_config(trial):
     plist = {}
     
     #Network related settings
-    plist['make_recurrent'] = True 
+    plist['make_recurrent'] = args.m_recu 
 
-    plist['num_lstm_layers'] = trial.suggest_int('lstm_layers', 1, 2)
-    plist['LSTM_output'] = []
-    plist['LSTM_output'].append(trial.suggest_int('lstm_' + str(0), 20, 40))
-    for i in range(plist['num_lstm_layers'] - 1):
-        plist['LSTM_output'].append(trial.suggest_int('lstm_' + str(i+1), 20, plist['LSTM_output'][i]))
+    if plist['make_recurrent']:
+        plist['num_lstm_layers'] = trial.suggest_int('lstm_layers', 1, 2)
+        plist['LSTM_output'] = []
+        plist['LSTM_output'].append(trial.suggest_int('lstm_' + str(0), 20, 40))
+        for i in range(plist['num_lstm_layers'] - 1):
+            plist['LSTM_output'].append(trial.suggest_int('lstm_' + str(i+1), 20, plist['LSTM_output'][i]))
+    else:
+        plist['num_lstm_layers'] = 0
+        plist['LSTM_output'] = []
 
     plist['num_dense_layers'] = trial.suggest_int('dense_layers', 3, 5) 
     plist['dense_output'] = []
