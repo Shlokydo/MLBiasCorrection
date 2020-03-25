@@ -1,6 +1,11 @@
 import numpy as np
 import tensorflow as tf
 
+tf.random.set_seed(5)
+
+def cus_tanh(x):
+    return 2 * tf.keras.activations.tanh(x)
+
 #Model network defination
 class rnn_model(tf.keras.Model):
 
@@ -35,18 +40,21 @@ class rnn_model(tf.keras.Model):
                                                     return_state=True))
 
         self.dense_list = []
-        for i in range(self.num_dense_layers + 1):
-
+        for i in range(self.num_dense_layers):
             self.dense_list.append(tf.keras.layers.Dense(units=self.dense_out[i],
                                     kernel_regularizer = self.kernel_regular,
-                                    activation = None,
+                                    activation = 'tanh',
                                     name = 'DENSE_{}'.format(i+1)))
-            self.dense_list.append(tf.keras.layers.PReLU(alpha_initializer = tf.constant_initializer(0.25), shared_axes = [1], name='PReLU_{}'.format(i+1)))
-
+            #self.dense_list.append(tf.keras.layers.PReLU(alpha_initializer = tf.constant_initializer(0.25), shared_axes = [1], name='PReLU_{}'.format(i+1)))
+        self.dense_list.append(tf.keras.layers.Dense(units=self.dense_out[-1],
+                                            kernel_regularizer = self.kernel_regular,
+                                            activation = None,
+                                            name = 'DENSE_{}'.format(i+1)))
     def call(self, inputs, stat):
         
-        state_h = [tf.zeros((inputs.shape[0], self.unit[i]), tf.float32) for i in range(self.num_layers)]
-        state_c = [tf.zeros((inputs.shape[0], self.unit[i]), tf.float32) for i in range(self.num_layers)]
+        initializer = tf.initializers.GlorotUniform(seed = 1)
+        state_h = [initializer([inputs.shape[0], self.unit[i]], dtype = tf.dtypes.float32) for i in range(self.num_layers)]
+        state_c = [initializer([inputs.shape[0], self.unit[i]], dtype = tf.dtypes.float32) for i in range(self.num_layers)]
         x = inputs
         for i in range(len(self.lstm_list)):
             try:
@@ -61,5 +69,5 @@ class rnn_model(tf.keras.Model):
             pass
         for i in range(len(self.dense_list)):
             x = self.dense_list[i](x)
-        
+
         return x, [state_h, state_c]

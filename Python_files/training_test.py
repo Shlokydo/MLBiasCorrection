@@ -11,17 +11,17 @@ import optuna
 import mlflow
 import mlflow.tensorflow
 
-mlflow.tensorflow.autolog()
-
 import helperfunctions as helpfunc
 import network_arch as net
+
+import datetime
 
 mirrored_strategy = tf.distribute.MirroredStrategy()
 
 def train(trial, plist, model, checkpoint, manager, summary_writer, optimizer, train_dataset_dist, val_dataset_dist):
    
     ename = re.search('DATA/(.+?)/', plist['netCDf_loc'])
-    mlflow.set_experiment(ename.group(1))
+    mlflow.set_experiment(str(datetime.date.today()) + '_' + ename.group(1))
     
     try:
         rname = str(trial.study.study_name) + '_' + str(trial.number)
@@ -40,12 +40,12 @@ def train(trial, plist, model, checkpoint, manager, summary_writer, optimizer, t
 
             def compute_loss(labels, predictions):
                 per_example_loss = loss_func(labels, predictions)
-                return per_example_loss * (1.0 / (plist['global_batch_size'] * plist['time_splits']))
+                return per_example_loss 
           
             def compute_metric(labels, predictions):
                 per_example_metric = tf.square(tf.subtract(labels, predictions))
                 per_example_metric = tf.reduce_sum(per_example_metric)
-                return tf.sqrt(per_example_metric * (1.0 / (plist['global_batch_size'] * plist['time_splits'])))
+                return per_example_metric 
 
             def train_step(inputs):
                 with tf.GradientTape() as tape:
@@ -55,49 +55,49 @@ def train(trial, plist, model, checkpoint, manager, summary_writer, optimizer, t
 
                     #Calculating relative loss
                     try:
-                        loss = compute_loss(analysis[:, -1, :], pred_analysis) * plist['grad_mellow'] 
+                        loss = compute_loss(analysis[:, -1, :], pred_analysis) * plist['grad_mellow'] * (1.0 / (plist['global_batch_size']))
                     except:
-                        loss = compute_loss(analysis, pred_analysis) * plist['grad_mellow']
+                        loss = compute_loss(analysis, pred_analysis) * plist['grad_mellow'] * (1.0 / (plist['global_batch_size']))
 
                 gradients = tape.gradient(loss, model.trainable_variables)
                 optimizer.apply_gradients(zip(gradients, model.trainable_weights))
 
                 try:
-                    metric_train = compute_metric(analysis[:, -1, :], pred_analysis)
+                    metric = (compute_metric(analysis[:, -1, :], pred_analysis)) * (1.0 / (plist['global_batch_size']))
                 except:
-                    metric_train = compute_metric(analysis, pred_analysis)
+                    metric = (compute_metric(analysis, pred_analysis)) * (1.0 / (plist['global_batch_size']))
 
-                return loss, metric_train
+                return loss, metric
 
             def val_step(inputs):
-                local_forecast_val, analysis_val = inputs
-                pred_analysis_val, _ = model(local_forecast_val, stat = [])
+                local_forecast, analysis = inputs
+                pred_analysis, _ = model(local_forecast, stat = [])
 
                 try:
-                    loss = compute_loss(analysis_val[:, -1, :], pred_analysis_val) * plist['grad_mellow'] 
+                    loss = compute_loss(analysis[:, -1, :], pred_analysis) * plist['grad_mellow'] * (1.0 / (plist['global_batch_size_v']))
                 except:
-                    loss = compute_loss(analysis_val, pred_analysis_val) * plist['grad_mellow']
+                    loss = compute_loss(analysis, pred_analysis) * plist['grad_mellow'] * (1.0 / (plist['global_batch_size_v']))
 
                 try:
-                    metric_val = compute_metric(analysis_val[:, -1, :], pred_analysis_val)
+                    metric = (compute_metric(analysis[:, -1, :], pred_analysis)) * (1.0 / (plist['global_batch_size_v']))
                 except:
-                    metric_val = compute_metric(analysis_val, pred_analysis_val)
+                    metric = (compute_metric(analysis, pred_analysis)) * (1.0 / (plist['global_batch_size_v']))
 
-                return loss, metric_val 
+                return loss, metric 
 
             @tf.function
             def distributed_train_step(inputs):
                 per_replica_losses, per_replica_metric = mirrored_strategy.experimental_run_v2(train_step, args=(inputs,))
                 loss = mirrored_strategy.reduce(tf.distribute.ReduceOp.SUM, per_replica_losses, axis=None)
                 met = mirrored_strategy.reduce(tf.distribute.ReduceOp.SUM, per_replica_metric, axis=None)
-                return loss, met
+                return loss, tf.sqrt(met)
 
             @tf.function
             def distributed_val_step(inputs):
                 per_replica_losses, per_replica_metric = mirrored_strategy.experimental_run_v2(val_step, args=(inputs,))
                 loss =  mirrored_strategy.reduce(tf.distribute.ReduceOp.SUM, per_replica_losses, axis=None)
                 met =  mirrored_strategy.reduce(tf.distribute.ReduceOp.SUM, per_replica_metric, axis=None)
-                return loss, met
+                return loss, tf.sqrt(met)
             
             #Initialing training variables
             global_step = 0
@@ -128,14 +128,13 @@ def train(trial, plist, model, checkpoint, manager, summary_writer, optimizer, t
                         # during the forward pass, which enables autodifferentiation.
                         loss, t_metric = distributed_train_step(inputs)
 
-                        # Log of validation results  
-                        if (step % plist['log_freq']) == 0:
-                            print('Training loss (for one batch) at step %s: %s' % (step+1, float(loss)))
+                        #if (step % plist['log_freq']) == 0:
+                        #    print('Training loss (for one batch) at step %s: %s' % (step+1, float(loss)))
                             
                     # Display metrics at the end of each epoch.
                     print('\nTraining loss at epoch end {}'.format(loss))
                     print('Training acc over epoch: %s ' % (float(t_metric)))
-                    print('Seen so far: %s samples\n' % ((global_step) * plist['global_batch_size']))
+                    #print('Seen so far: %s samples\n' % ((global_step) * plist['global_batch_size']))
 
                     #Code for validation at the end of each epoch
                     for step_val, val_inputs in enumerate(val_dataset_dist):
@@ -144,13 +143,14 @@ def train(trial, plist, model, checkpoint, manager, summary_writer, optimizer, t
 
                         val_loss, v_metric = distributed_val_step(val_inputs)
 
-                        if (step_val % plist['log_freq']) == 0:
-                            print('Validation loss (for one batch) at step {}: {}'.format(step_val+1, val_loss))
+                        #if (step_val % plist['log_freq']) == 0:
+                        #    print('Validation loss (for one batch) at step {}: {}'.format(step_val+1, val_loss))
                             
                     print('Validation acc over epoch: %s \n' % (float(v_metric)))
                     
                     #Report intermidiate objective value
                     trial.report(val_loss, epoch)
+                    trial.report(loss, epoch)
                     trial.report(v_metric, epoch)
                     trial.report(t_metric, epoch)
 
@@ -214,7 +214,8 @@ def traintest(trial, plist):
     #Get dataset
     print("\nProcessing Dataset\n")
 
-    forecast_dataset, analysis_dataset, a_a, s_a, a_f, s_f = helpfunc.createdataset(plist)
+    #forecast_dataset, analysis_dataset, a_a, s_a, a_f, s_f = helpfunc.createdataset(plist)
+    forecast_dataset, analysis_dataset, a_f, s_f = helpfunc.createdataset(plist)
     if plist['make_recurrent']:
         analysis_split = helpfunc.split_sequences(analysis_dataset[:,100:,:], plist['time_splits'])
         analysis_split = np.transpose(analysis_split, (1,0,2,3))
@@ -222,10 +223,10 @@ def traintest(trial, plist):
         forecast_split = helpfunc.split_sequences(forecast_dataset[:,100:,:], plist['time_splits'])
         forecast_split = np.transpose(forecast_split, (1,0,2,3))
 
-        analysis_dataset = np.reshape(analysis_split, (analysis_split.shape[0]*analysis_split.shape[1],
-                                plist['time_splits'], 1))
-        forecast_dataset = np.reshape(forecast_split, (forecast_split.shape[0]*forecast_split.shape[1],
-                                plist['time_splits'], plist['locality']))
+        analysis_dataset = np.reshape(analysis_split, (analysis_split.shape[0]*analysis_split.shape[1], plist['time_splits'], 1))
+        forecast_dataset = np.reshape(forecast_split, (forecast_split.shape[0]*forecast_split.shape[1], plist['time_splits'], plist['locality']))
+        #analysis_dataset = analysis_split[0]
+        #forecast_dataset = forecast_split[0]
 
     else:
         plist['time_splits'] = 1
@@ -244,6 +245,7 @@ def traintest(trial, plist):
     dataset_val = tf.data.Dataset.zip((tfdataset_forecast_val, tfdataset_analysis_val))
 
     #Shuffling the dataset
+    tf.random.set_seed(5)
     dataset_train = dataset_train.shuffle(1000000, seed = 1)
     dataset_train = dataset_train.batch(batch_size=plist['global_batch_size'], drop_remainder=True)
 
@@ -270,11 +272,13 @@ def traintest(trial, plist):
         optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
 
         #Defining the checkpoint instance
-        a_a = tf.Variable(a_a, dtype = tf.float32)
-        s_a = tf.Variable(s_a, dtype = tf.float32)
+        #a_a = tf.Variable(a_a, dtype = tf.float32)
+        #s_a = tf.Variable(s_a, dtype = tf.float32)
         a_f = tf.Variable(a_f, dtype = tf.float32)
         s_f = tf.Variable(s_f, dtype = tf.float32)
-        checkpoint = tf.train.Checkpoint(epoch = tf.Variable(0), model = model, a_a = a_a, s_a = s_a, a_f = a_f, s_f = s_f)
+        time_splits = tf.Variable(plist['time_splits'])
+        #checkpoint = tf.train.Checkpoint(epoch = tf.Variable(0), model = model, a_a = a_a, s_a = s_a, a_f = a_f, s_f = s_f, time_splits = time_splits)
+        checkpoint = tf.train.Checkpoint(epoch = tf.Variable(0), model = model, a_f = a_f, s_f = s_f, time_splits = time_splits)
 
     #Creating summary writer
     summary_writer = tf.summary.create_file_writer(logdir= plist['log_dir'])
