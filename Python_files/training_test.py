@@ -26,7 +26,7 @@ def train(trial, plist, model, checkpoint, manager, summary_writer, optimizer, t
     try:
         rname = str(trial.study.study_name) + '_' + str(trial.number)
     except:
-        rname = plist['experiment_name'] + 'best'
+        rname = plist['experiment_name'] 
 
     with mlflow.start_run(run_name = rname):
 
@@ -231,7 +231,7 @@ def traintest(trial, plist):
     else:
         plist['time_splits'] = 1
         analysis_dataset = np.reshape(analysis_dataset, (analysis_dataset.shape[0]*analysis_dataset.shape[1], 1))
-        forecast_dataset = np.reshape(forecast_dataset, (forecast_dataset.shape[0]*forecast_dataset.shape[1], plist['locality']))
+        forecast_dataset = np.reshape(forecast_dataset, (forecast_dataset.shape[0]*forecast_dataset.shape[1], plist['locality'] * plist['degree']))
 
 
     tfdataset_analysis_train = helpfunc.create_tfdataset(analysis_dataset[:-plist['val_size']])
@@ -272,12 +272,9 @@ def traintest(trial, plist):
         optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
 
         #Defining the checkpoint instance
-        #a_a = tf.Variable(a_a, dtype = tf.float32)
-        #s_a = tf.Variable(s_a, dtype = tf.float32)
         a_f = tf.Variable(a_f, dtype = tf.float32)
         s_f = tf.Variable(s_f, dtype = tf.float32)
         time_splits = tf.Variable(plist['time_splits'])
-        #checkpoint = tf.train.Checkpoint(epoch = tf.Variable(0), model = model, a_a = a_a, s_a = s_a, a_f = a_f, s_f = s_f, time_splits = time_splits)
         checkpoint = tf.train.Checkpoint(epoch = tf.Variable(0), model = model, a_f = a_f, s_f = s_f, time_splits = time_splits)
 
     #Creating summary writer

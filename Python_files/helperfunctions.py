@@ -5,6 +5,7 @@ import time
 import math
 import pandas as pd
 import pickle
+import sys
 
 #For creating locality for individual state variable
 def locality_creator(init_dataset, locality_range, xlocal):
@@ -29,6 +30,15 @@ def locality_creator(init_dataset, locality_range, xlocal):
 
     #return np.multiply(np.transpose(output_dataset,(1,0,2)), locality).astype('float32') 
     return np.transpose(output_dataset,(1,0,2))
+
+def make_poly(init_dataset, degree):
+    
+    output_dataset = np.zeros((init_dataset.shape[0], init_dataset.shape[1], degree))
+    output_dataset[:,:,0] = init_dataset
+    for i in range(degree-1):
+        output_dataset[:,:,i+1] = np.power(init_dataset, i+2)
+
+    return output_dataset
 
 #For creating the truth label
 def truth_label_creator(init_dataset):
@@ -127,33 +137,29 @@ def createdataset(plist):
     print('RMSE of Analysis - Forecast: ', rmse)
 
     d_analysis_init = analysis_init - forecast_init
-    print('Difference min: ', np.min(d_analysis_init), ' max: ', np.max(d_analysis_init))
-    print('Forecast min: ', np.min(forecast_init), ' max: ', np.max(forecast_init))
-    print('Analysis min: ', np.min(analysis_init), ' max: ', np.max(analysis_init))
     
     if plist['normalized']:
         print('\nUsing Normalized Dataset.\n')
-        #ave_d_analysis = np.average(d_analysis_init,axis=0)
-        #std_d_analysis = np.std(d_analysis_init,axis=0)
         ave_forecast = np.average(forecast_init,axis=0)
         std_forecast = np.std(forecast_init,axis=0)
     else:
-        #ave_d_analysis = np.zeros(d_analysis_init.shape[1])
-        #std_d_analysis = np.ones(d_analysis_init.shape[1])
         ave_forecast = np.zeros(forecast_init.shape[1])
         std_forecast = np.ones(forecast_init.shape[1])
 
-    #d_analysis_init_norm = np.true_divide(d_analysis_init - ave_d_analysis, std_d_analysis)
-    #print('Difference normalized min: ', np.min(d_analysis_init_norm), ' max: ', np.max(d_analysis_init_norm))
     forecast_init_norm = np.true_divide(forecast_init - ave_forecast, std_forecast) 
     print('Forecast normalized min: ', np.min(forecast_init_norm), ' max: ', np.max(forecast_init_norm))
 
     analysis_dataset = truth_label_creator(d_analysis_init)
+    print(forecast_init_norm.shape)
     forecast_dataset = locality_creator(forecast_init_norm, plist['locality'], plist['xlocal'])
-    #analysis_dataset = truth_label_creator(analysis_init[:plist['num_timesteps']])
-    #forecast_dataset = locality_creator(forecast_init[:plist['num_timesteps']], plist['locality'], plist['xlocal'])
 
-    #return forecast_dataset, analysis_dataset, ave_d_analysis, std_d_analysis, ave_forecast, std_forecast
+    if plist['degree'] > 1:
+        if plist['locality'] == 1:
+            forecast_dataset = make_poly(np.squeeze(forecast_dataset), plist['degree'])
+            print('Poly forecast shape: ', forecast_dataset.shape)
+        else:
+            print('Cannot implement polynomial version as locality is not 1.')
+            sys.exit()
     return forecast_dataset, analysis_dataset, ave_forecast, std_forecast
 
 #Code for creating Tensorflow Dataset:

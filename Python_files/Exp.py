@@ -25,12 +25,16 @@ parser.add_argument("--num_trials", "-nt",  default = 10, type = int, help = "Nu
 parser.add_argument("--netcdf_dataset", "-ncdf_loc", default = "../DATA/simple_test/test_obs/test_da/assim.nc", type = str, help = "Location of the netCDF dataset")
 parser.add_argument("--optuna_study", "-os", default = "simple_test", type = str, help = "Optuna Study name")
 parser.add_argument("--locality", "-l",  default = 9, type = int, help = "Locality size (including the main variable)")
+parser.add_argument("--degree", "-d",  default = 1, type = int, help = "To make a polynomial input")
 parser.add_argument("--normalized", "-norm",  default = 1, type = int, choices = [0, 1], help = "Use normalized dataset for training.")
 parser.add_argument("--time_splits", "-ts",  default = 5, type = int, help = "Num of RNN timesteps")
 parser.add_argument("--train_batch", "-tb", default = 16384, type = int, help = "Training batch size")
 parser.add_argument("--val_batch", "-vb", default = 16384, type = int, help = "Validation batch size")
 parser.add_argument("--num_batches", "-nbs",  default = 1, type = int, help = "Number of training batch per epoch")
 args = parser.parse_args()
+
+if (args.locality > 1) and (args.degree > 1):
+    parser.error('If degree is > 1 then locality has to be 1.')
 
 def my_config(trial):
     #Parameter List
@@ -54,7 +58,7 @@ def my_config(trial):
         plist['num_lstm_layers'] = 0
         plist['LSTM_output'] = []
 
-    plist['num_dense_layers'] = trial.suggest_int('dense_layers', 1, 1) 
+    plist['num_dense_layers'] = trial.suggest_int('dense_layers', 1, 2) 
     plist['dense_output'] = []
     plist['dense_output'].append(trial.suggest_int('dense_' + str(0), 8, 18))
     for i in range(plist['num_dense_layers'] - 1):
@@ -97,6 +101,7 @@ def my_config(trial):
     plist['netCDf_loc'] = args.netcdf_dataset
     plist['xlocal'] = 3
     plist['locality'] = args.locality
+    plist['degree'] = args.degree
     plist['normalized'] = args.normalized
     #plist['locality'] = trial.suggest_categorical('locality', [1, 3, 5, 7])
 
