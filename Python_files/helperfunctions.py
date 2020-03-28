@@ -138,8 +138,6 @@ def createdataset(plist):
     print('RMSE of Analysis - Forecast: ', rmse)
 
     d_analysis_init = analysis_init - forecast_init
-    c_max = np.max(d_analysis_init)
-    c_min = np.min(d_analysis_init)
     print(np.count_nonzero(d_analysis_init > 0) / (d_analysis_init.shape[0] * d_analysis_init.shape[1]))
     
     if plist['normalized']:
@@ -164,7 +162,7 @@ def createdataset(plist):
         else:
             print('Cannot implement polynomial version as locality is not 1.')
             sys.exit()
-    return forecast_dataset, analysis_dataset, ave_forecast, std_forecast, c_max, c_min
+    return forecast_dataset, analysis_dataset, ave_forecast, std_forecast
 
 #Code for creating Tensorflow Dataset:
 def create_tfdataset(initial_dataset):

@@ -9,7 +9,7 @@ def cus_tanh(x):
 #Model network defination
 class rnn_model(tf.keras.Model):
 
-    def __init__(self, parameter_list, c_max, c_min, name = 'RNN_Model'):
+    def __init__(self, parameter_list, name = 'RNN_Model'):
         super(rnn_model, self).__init__()
         self.unit = parameter_list['LSTM_output']
         self.acti = parameter_list['activation']
@@ -23,8 +23,6 @@ class rnn_model(tf.keras.Model):
         self.num_dense_layers = parameter_list['num_dense_layers']
         self.dense_out = parameter_list['dense_output']
         self.locality = parameter_list['locality']
-        self.c_max = c_max
-        self.c_min = c_min
 
     def build(self, input_shape):
 
@@ -73,5 +71,4 @@ class rnn_model(tf.keras.Model):
         for i in range(len(self.dense_list)):
             x = self.dense_list[i](x)
         
-        x = tf.clip_by_value(x, clip_value_min = self.c_min, clip_value_max = self.c_max)
         return x, [state_h, state_c]
