@@ -67,5 +67,6 @@ def plot_func(plist, c_forecast, analysis, forecast, c_rmse, rmse):
             scatter_plot((c_forecast[:,i], forecast[:,i], analysis[:,i]), i, 'Corrected_forecast', 'Biased_Forecast', 'Analysis', image_dir, c_rmse, rmse)
             
             line_plot((c_forecast[:,i], forecast[:,i], analysis[:,i]), i, image_dir, c_rmse, rmse)
-
+        mlflow.log_metric('C_RMSE', c_rmse)
+        mlflow.log_metric('B_RMSE', rmse)
         mlflow.log_artifacts(image_dir)

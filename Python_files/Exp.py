@@ -66,6 +66,7 @@ def my_config(trial):
     plist['dense_output'].append(1)
 
     plist['activation'] = 'tanh'
+    plist['d_activation'] = None
     plist['rec_activation'] = 'sigmoid'
     plist['l2_regu'] = 0.0
     plist['l1_regu'] = 0.0

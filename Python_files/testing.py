@@ -27,6 +27,13 @@ def test(plist, model, a_f, s_f, time_splits):
     forecast_init = root_grp["vfm"][25000:25000+args.timesteps]
 
     forecast_dataset = helpfunc.locality_creator(forecast_init, plist['locality'], plist['xlocal'])
+    if plist['degree'] > 1:
+        if plist['locality'] == 1:
+            forecast_dataset = helpfunc.make_poly(np.squeeze(forecast_dataset), plist['degree'])
+            print('Poly forecast shape: ', forecast_dataset.shape)
+        else:
+            print('Cannot implement polynomial version as locality is not 1.')
+            sys.exit()
     
     n_forecast = np.divide(np.subtract(forecast_dataset, a_f), s_f)
     c_forecast = np.zeros((analysis_init.shape[0], analysis_init.shape[1]), dtype='float32')
@@ -55,16 +62,16 @@ def testing(plist):
     print('\nGPU Available: {}\n'.format(tf.test.is_gpu_available()))
 
     #Get the Model
-    model = net.rnn_model(plist)
-    #a_a = tf.Variable(0, dtype = tf.float32)
-    #s_a = tf.Variable(0, dtype = tf.float32)
+    c_max = tf.Variable(1.4, dtype = tf.float32)
+    c_min = tf.Variable(-3.4, dtype = tf.float32)
     a_f = tf.Variable(tf.zeros(16, dtype = tf.float32))
     s_f = tf.Variable(tf.zeros(16, dtype = tf.float32))
     time_splits = tf.Variable(0)
+    model = net.rnn_model(plist, c_max, c_min)
 
     #Defining the checkpoint instance
     #checkpoint = tf.train.Checkpoint(model = model, a_a = a_a, s_a = s_a, a_f = a_f, s_f = s_f, time_splits = time_splits)
-    checkpoint = tf.train.Checkpoint(model = model, a_f = a_f, s_f = s_f, time_splits = time_splits)
+    checkpoint = tf.train.Checkpoint(model = model, a_f = a_f, s_f = s_f, time_splits = time_splits, c_max = c_max, c_min = c_min)
 
     #Creating checkpoint instance
     save_directory = plist['checkpoint_dir']
@@ -76,8 +83,8 @@ def testing(plist):
 
     #print('Avg. of analysis - forecast normalized: ', a_a.numpy())
     #print('Std. of analysis - forecast normalized: ', s_a.numpy())
-    #print('Avg. of forecast normalized: ', a_f)
-    #print('Std. of forecast normalized: ', s_f)
+    #print('Avg. of forecast normalized: ', c_max)
+    #print('Std. of forecast normalized: ', c_min)
     #print('Time stepping: ', time_splits.numpy())
 
     #Checking if previous checkpoint exists

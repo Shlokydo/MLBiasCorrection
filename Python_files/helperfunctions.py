@@ -132,11 +132,15 @@ def createdataset(plist):
     #Extrating the datasets
     analysis_init = np.array(root_grp["vam"])[:plist['num_timesteps']]
     forecast_init = np.array(root_grp["vfm"])[:plist['num_timesteps']]
-    
+    print(np.min(analysis_init), np.max(analysis_init))
+    print(np.count_nonzero(analysis_init < 0) / (analysis_init.shape[0] * analysis_init.shape[1]))
     rmse = np.sqrt(np.mean(np.power(analysis_init - forecast_init, 2)))
     print('RMSE of Analysis - Forecast: ', rmse)
 
     d_analysis_init = analysis_init - forecast_init
+    c_max = np.max(d_analysis_init)
+    c_min = np.min(d_analysis_init)
+    print(np.count_nonzero(d_analysis_init > 0) / (d_analysis_init.shape[0] * d_analysis_init.shape[1]))
     
     if plist['normalized']:
         print('\nUsing Normalized Dataset.\n')
@@ -160,7 +164,7 @@ def createdataset(plist):
         else:
             print('Cannot implement polynomial version as locality is not 1.')
             sys.exit()
-    return forecast_dataset, analysis_dataset, ave_forecast, std_forecast
+    return forecast_dataset, analysis_dataset, ave_forecast, std_forecast, c_max, c_min
 
 #Code for creating Tensorflow Dataset:
 def create_tfdataset(initial_dataset):

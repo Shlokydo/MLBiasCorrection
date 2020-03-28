@@ -215,7 +215,7 @@ def traintest(trial, plist):
     print("\nProcessing Dataset\n")
 
     #forecast_dataset, analysis_dataset, a_a, s_a, a_f, s_f = helpfunc.createdataset(plist)
-    forecast_dataset, analysis_dataset, a_f, s_f = helpfunc.createdataset(plist)
+    forecast_dataset, analysis_dataset, a_f, s_f, c_max, c_min = helpfunc.createdataset(plist)
     if plist['make_recurrent']:
         analysis_split = helpfunc.split_sequences(analysis_dataset[:,100:,:], plist['time_splits'])
         analysis_split = np.transpose(analysis_split, (1,0,2,3))
@@ -258,7 +258,7 @@ def traintest(trial, plist):
 
     #Get the Model
     with mirrored_strategy.scope():
-        model = net.rnn_model(plist)
+        model = net.rnn_model(plist, c_max, c_min)
 
         #Defining Model compiling parameters
         if plist['lr_decay_rate']:
@@ -274,8 +274,10 @@ def traintest(trial, plist):
         #Defining the checkpoint instance
         a_f = tf.Variable(a_f, dtype = tf.float32)
         s_f = tf.Variable(s_f, dtype = tf.float32)
+        c_max = tf.Variable(c_max, dtype = tf.float32)
+        c_min = tf.Variable(c_min, dtype = tf.float32)
         time_splits = tf.Variable(plist['time_splits'])
-        checkpoint = tf.train.Checkpoint(epoch = tf.Variable(0), model = model, a_f = a_f, s_f = s_f, time_splits = time_splits)
+        checkpoint = tf.train.Checkpoint(epoch = tf.Variable(0), model = model, a_f = a_f, s_f = s_f, time_splits = time_splits, c_max = c_max, c_min = c_min)
 
     #Creating summary writer
     summary_writer = tf.summary.create_file_writer(logdir= plist['log_dir'])
