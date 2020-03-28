@@ -26,7 +26,7 @@ def train(trial, plist, model, checkpoint, manager, summary_writer, optimizer, t
     try:
         rname = str(trial.study.study_name) + '_' + str(trial.number)
     except:
-        rname = 'best'
+        rname = plist['experiment_name'] + 'best'
 
     with mlflow.start_run(run_name = rname):
 
