@@ -65,7 +65,7 @@ def testing(plist):
     a_f = tf.Variable(tf.zeros(16, dtype = tf.float32))
     s_f = tf.Variable(tf.zeros(16, dtype = tf.float32))
     time_splits = tf.Variable(0)
-    model = net.rnn_model(plist, c_max, c_min)
+    model = net.rnn_model(plist)
 
     #Defining the checkpoint instance
     #checkpoint = tf.train.Checkpoint(model = model, a_a = a_a, s_a = s_a, a_f = a_f, s_f = s_f, time_splits = time_splits)

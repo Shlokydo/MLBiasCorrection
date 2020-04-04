@@ -66,7 +66,7 @@ def my_config(trial):
     plist['dense_output'].append(1)
 
     plist['activation'] = 'tanh'
-    plist['d_activation'] = None
+    plist['d_activation'] = 'tanh'
     plist['rec_activation'] = 'sigmoid'
     plist['l2_regu'] = 0.0
     plist['l1_regu'] = 0.0
@@ -107,7 +107,7 @@ def my_config(trial):
     #plist['locality'] = trial.suggest_categorical('locality', [1, 3, 5, 7])
 
     if args.t == 'optimize':
-        plist['experiment_name'] = str(trial.study.study_name) + '_' + str(trial.number)
+        plist['experiment_name'] = 'optuna/'+ str(trial.study.study_name) + '_' + str(trial.number)
     elif args.t == 'best':
         plist['experiment_name'] = args.optuna_study + '_best' 
 
