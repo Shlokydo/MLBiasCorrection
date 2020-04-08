@@ -27,6 +27,7 @@ parser.add_argument("--optuna_study", "-os", default = "simple_test", type = str
 parser.add_argument("--locality", "-l",  default = 9, type = int, help = "Locality size (including the main variable)")
 parser.add_argument("--degree", "-d",  default = 1, type = int, help = "To make a polynomial input")
 parser.add_argument("--normalized", "-norm",  default = 1, type = int, choices = [0, 1], help = "Use normalized dataset for training.")
+parser.add_argument("--af_mix", "-afm",  default = 0, type = int, choices = [0, 1], help = "Use analysis forecast mixed.")
 parser.add_argument("--time_splits", "-ts",  default = 5, type = int, help = "Num of RNN timesteps")
 parser.add_argument("--train_batch", "-tb", default = 16384, type = int, help = "Training batch size")
 parser.add_argument("--val_batch", "-vb", default = 16384, type = int, help = "Validation batch size")
@@ -47,11 +48,11 @@ def my_config(trial):
         plist['time_splits'] = args.time_splits
         #plist['time_splits'] = trial.suggest_categorical('Time_splits', [2, 3, 4, 5, 6])
         print('\nNetwork is recurrent\n')
-        plist['num_lstm_layers'] = trial.suggest_int('lstm_layers', 1, 1)
+        plist['num_lstm_layers'] = trial.suggest_int('lstm_layers', 2, 2)
         plist['LSTM_output'] = []
         plist['LSTM_output'].append(trial.suggest_int('lstm_' + str(0), 5, 25))
         for i in range(plist['num_lstm_layers'] - 1):
-            plist['LSTM_output'].append(trial.suggest_int('lstm_' + str(i+1), 20, plist['LSTM_output'][i]))
+            plist['LSTM_output'].append(trial.suggest_int('lstm_' + str(i+1), 1, plist['LSTM_output'][i]))
     else:
         plist['time_splits'] = 1 
         print('\nNetwork is only dense\n')
@@ -66,9 +67,9 @@ def my_config(trial):
     plist['dense_output'].append(1)
 
     plist['activation'] = 'tanh'
-    plist['d_activation'] = 'tanh'
+    plist['d_activation'] = 'linear'
     plist['rec_activation'] = 'sigmoid'
-    plist['l2_regu'] = 0.0
+    plist['l2_regu'] = 1e-5
     plist['l1_regu'] = 0.0
     plist['lstm_dropout'] = 0.0
     plist['rec_lstm_dropout'] = 0.0
@@ -104,6 +105,7 @@ def my_config(trial):
     plist['locality'] = args.locality
     plist['degree'] = args.degree
     plist['normalized'] = args.normalized
+    plist['anal_for_mix'] = args.af_mix
     #plist['locality'] = trial.suggest_categorical('locality', [1, 3, 5, 7])
 
     if args.t == 'optimize':

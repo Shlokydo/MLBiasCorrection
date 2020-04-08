@@ -23,10 +23,12 @@ def test(plist, model, a_f, s_f, time_splits):
     root_grp = Dataset(plist['netCDf_loc'], "a", format="NETCDF4")
 
     #Extrating the datasets
-    analysis_init = root_grp["vam"][25000:25000+args.timesteps]
-    forecast_init = root_grp["vfm"][25000:25000+args.timesteps]
+    analysis_init = root_grp["vam"][25000:25000 + args.timesteps + time_splits - 1]
+    forecast_init = root_grp["vfm"][25000:25000 + args.timesteps + time_splits - 1] 
+    print(forecast_init.shape)
 
     forecast_dataset = helpfunc.locality_creator(forecast_init, plist['locality'], plist['xlocal'])
+    print(forecast_dataset.shape)
     if plist['degree'] > 1:
         if plist['locality'] == 1:
             forecast_dataset = helpfunc.make_poly(np.squeeze(forecast_dataset), plist['degree'])
@@ -39,23 +41,28 @@ def test(plist, model, a_f, s_f, time_splits):
     c_forecast = np.zeros((analysis_init.shape[0], analysis_init.shape[1]), dtype='float32')
 
     if plist['make_recurrent']:
-        for i in range(forecast_dataset.shape[1]):
+        for i in range(forecast_dataset.shape[1] - time_splits + 1):
             b_forecast = forecast_init[i + time_splits - 1,:]
             forecast = n_forecast[:, i:i + time_splits, :]
-            #c_forecast[:, i + time_splits - 1] = np.add(np.multiply(np.squeeze(model(forecast).numpy()), s_a), a_a) + b_forecast[:, -1, :] 
-            c_forecast[:, i + time_splits - 1] = np.squeeze(model(forecast, [])[0].numpy()) + b_forecast 
+            try:
+                if plist['anal_for_mix']:
+                    forecast[:, :-1, :] = np.expand_dims(np.transpose(np.subtract(analysis_init[i:i + time_splits - 1, :], forecast_init[i:i + time_splits - 1, :])), axis = -1)
+            except:
+                pass
+            c_forecast[i + time_splits - 1, :] = np.squeeze(model(forecast, [])[0].numpy()) + b_forecast 
     else:
         for j in range(forecast_dataset.shape[1]):             
             b_forecast = forecast_init[j,:]
             forecast = n_forecast[:,j,:]
             c_forecast[j,:] = np.squeeze(model(forecast, [])[0].numpy()) + b_forecast
-
-    c_rmse = np.sqrt(np.mean(np.power(analysis_init - c_forecast, 2)))
+    
+    c_rmse = np.sqrt(np.mean(np.power(analysis_init[time_splits-1:] - c_forecast[time_splits-1:], 2)))
     rmse = np.sqrt(np.mean(np.power(analysis_init - forecast_init, 2)))
     print('Non-Corrected RMSE: ', rmse)
     print('Corrected RMSE: ', c_rmse)
+    print(c_forecast.shape)
 
-    return c_forecast, analysis_init, forecast_init, c_rmse, rmse
+    return c_forecast[time_splits-1:], analysis_init[time_splits-1:], forecast_init[time_splits-1:], c_rmse, rmse
 
 def testing(plist):
 
@@ -83,7 +90,7 @@ def testing(plist):
     #print('Std. of analysis - forecast normalized: ', s_a.numpy())
     #print('Avg. of forecast normalized: ', c_max)
     #print('Std. of forecast normalized: ', c_min)
-    #print('Time stepping: ', time_splits.numpy())
+    print('Time stepping: ', time_splits.numpy())
 
     #Checking if previous checkpoint exists
     if manager.latest_checkpoint:

@@ -225,8 +225,9 @@ def traintest(trial, plist):
 
         analysis_dataset = np.reshape(analysis_split, (analysis_split.shape[0]*analysis_split.shape[1], plist['time_splits'], 1))
         forecast_dataset = np.reshape(forecast_split, (forecast_split.shape[0]*forecast_split.shape[1], plist['time_splits'], plist['locality']))
-        #analysis_dataset = analysis_split[0]
-        #forecast_dataset = forecast_split[0]
+
+        if plist['anal_for_mix']:
+            forecast_dataset[:, :-1, :] = analysis_dataset[:, :-1, :]
 
     else:
         plist['time_splits'] = 1

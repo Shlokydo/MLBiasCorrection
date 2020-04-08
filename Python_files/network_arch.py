@@ -27,6 +27,7 @@ class rnn_model(tf.keras.Model):
     def build(self, input_shape):
 
         self.lstm_list = []
+        i = 0
         for i in range(self.num_layers):
 
             self.lstm_list.append(tf.keras.layers.LSTM(units = self.unit[i], 
@@ -41,6 +42,7 @@ class rnn_model(tf.keras.Model):
                                                     return_state=True))
 
         self.dense_list = []
+        i = 0
         for i in range(self.num_dense_layers):
             self.dense_list.append(tf.keras.layers.Dense(units=self.dense_out[i],
                                     kernel_regularizer = self.kernel_regular,
