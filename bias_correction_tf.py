@@ -11,7 +11,7 @@ import network_arch as net
 import helperfunctions as helpfunc
 
 def get_pickle():
-  pickle_name = './n_experiments/L15_D10_5/checkpoint/params.pickle' #Enter the location of the parameter_list pickle file name
+  pickle_name = './n_experiments/obs001_dt005_L2D_tanh_3_best/checkpoint/params.pickle' #Enter the location of the parameter_list pickle file name
   parameter_list = helpfunc.read_pickle(pickle_name)
   return parameter_list
 
@@ -19,11 +19,14 @@ def get_model(plist):
   
   parameter_list = plist
   print('\nGetting the Tensorflow model\n')
-  parameter_list['stateful'] = True
+  #Get the Model
+  a_f = tf.Variable(tf.zeros(16, dtype = tf.float32))
+  s_f = tf.Variable(tf.zeros(16, dtype = tf.float32))
+  time_splits = tf.Variable(0)
   model = net.rnn_model(parameter_list)
 
   #Creating checkpoint instance
-  checkpoint = tf.train.Checkpoint(epoch = tf.Variable(0), model = model)
+  checkpoint = tf.train.Checkpoint(model = model, a_f = a_f, s_f = s_f, time_splits = time_splits)
   manager = tf.train.CheckpointManager(checkpoint, directory= parameter_list['checkpoint_dir'], 
                                       max_to_keep= parameter_list['max_checkpoint_keep'])
   checkpoint.restore(manager.latest_checkpoint).expect_partial()
@@ -32,36 +35,35 @@ def get_model(plist):
   if manager.latest_checkpoint:
     print("Restored model from {}".format(manager.latest_checkpoint))
 
-  return model
+  return model, time_splits.numpy()
 
 class BCTF():
   
   def __init__(self, num_var):
     self.plist = get_pickle() #Getting the parameter_list
-    self.model = get_model(self.plist)  #Getting the model
-    sta_indi = [tf.zeros((1, self.plist['LSTM_output'][i]), tf.float32) for i in range(self.plist['num_lstm_layers'])]
-    self.state_h = [sta_indi for i in range(num_var)]
-    self.state_c = [sta_indi for i in range(num_var)]
+    self.model, self.time_splits = get_model(self.plist)  #Getting the model
     self.dim = num_var
+    self.inp_counter = 1
+    self.network_array = np.zeros((self.dim, self.time_splits, self.plist['locality']))
 
   def locality_gen(self, inp):
     inp = np.expand_dims(inp, axis = 0)
     a = helpfunc.locality_creator(inp, self.plist['locality'], self.plist['xlocal'])
-    return np.transpose(a, axes=(1,0,2))
+    return a
 
   def predict(self, inp):
     
     @tf.function
-    def pred(fore, st):
-      return self.model(fore, st)
-
-    new_forecast = tf.TensorArray(tf.float32, size = inp.shape[1], element_shape=(1, 1, 1))
-
-    for i in range(inp.shape[1]):
-      forecast = tf.expand_dims(inp[:,i,:], axis = 1)
-      new, self.state_h[i], self.state_c[i] = pred(forecast, [self.state_h[i], self.state_c[i]])
-      new_forecast.write(i, new)
-   
-    new_forecast = new_forecast.stack()
-    new_forecast = tf.squeeze(new_forecast)
-    return new_forecast.numpy()
+    def pred(fore):
+      return self.model(fore)
+    
+    inp_locality = self.locality_gen(inp)
+    
+    if self.inp_counter == self.time_splits:
+      self.network_array = np.roll(self.network_array, -1, axis = 0) 
+      self.network_array[:,-1,:] = np.squeeze(inp_locality)
+      return np.squeeze(self.model(self.network_array, [])[0].numpy()) + inp 
+    else:
+      self.network_array[:,self.inp_counter,:] = np.squeeze(inp_locality)
+      self.inp_counter += 1
+      return inp

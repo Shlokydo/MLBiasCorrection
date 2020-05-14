@@ -37,6 +37,7 @@ bc_alpha = param.param_bc['alpha']
 bc_gamma = param.param_bc['gamma']
 
 intv_nature=int(dt_nature/dt)
+intv_assim=int(dt_assim/dt)
 #------------------------------------------------
 
 
@@ -81,14 +82,23 @@ rmse_mean=0
 for step in range(ntime_nature):
   for i in range(intv_nature):
     letkf.forward()
+    if param.param_bc['correct_step'] is not None:
+      for i in range(nmem):
+        fact=1.0/intv_assim
+        letkf.ensemble[i].x = fact * bc.correct(letkf.ensemble[i].x) + (1.0-fact) * letkf.ensemble[i].x
   if (np.count_nonzero(time_obs == time_nature[step])): 
     step_obs=int(np.where(time_obs == time_nature[step])[0])
     if (round(time_obs[step_obs]/dt_assim,2).is_integer()):  
       if (step + 1) < length:
         xfmtempb=letkf.mean()
         xfm_raw.append(xfmtempb)
-        for i in range(nmem):
-          letkf.ensemble[i].x = bc.correct(letkf.ensemble[i].x)
+        if param.param_bc['correct_step'] is not None:
+          for i in range(nmem):
+            fact=1.0/intv_assim
+            letkf.ensemble[i].x = fact * bc.correct(letkf.ensemble[i].x) + (1.0-fact) * letkf.ensemble[i].x
+        else:
+          for i in range(nmem):
+            letkf.ensemble[i].x = bc.correct(letkf.ensemble[i].x)
 
         xf.append(letkf.members())
         xfmtemp=letkf.mean()
@@ -100,7 +110,7 @@ for step in range(ntime_nature):
         xam.append(xamtemp)
         time_assim.append(round(time_obs[step_obs],4))
 
-        bc.train(xfmtemp,xamtemp) 
+        if param.param_bc['offline'] is None  : bc.train(xfmtemp,xamtemp)  
 
         rmse = math.sqrt(((letkf.mean()-nature[step])**2).sum() /nx)
         sprd = math.sqrt((letkf.sprd()**2).sum()/nx)
