@@ -20,8 +20,8 @@ mirrored_strategy = tf.distribute.MirroredStrategy()
 
 def train(trial, plist, model, checkpoint, manager, summary_writer, optimizer, train_dataset_dist, val_dataset_dist):
    
-    ename = re.search('DATA/(.+?)/', plist['netCDf_loc'])
-    mlflow.set_experiment(str(datetime.date.today()) + '_' + ename.group(1))
+    ename = plist['optuna_db']#re.search('DATA/(.+?)/', plist['netCDf_loc'])
+    mlflow.set_experiment(str(datetime.date.today()) + '_' + ename)#.group(1))
     
     try:
         rname = str(trial.study.study_name) + '_' + str(trial.number)
@@ -225,6 +225,7 @@ def traintest(trial, plist):
 
         analysis_dataset = np.reshape(analysis_split, (analysis_split.shape[0]*analysis_split.shape[1], plist['time_splits'], 1))
         forecast_dataset = np.reshape(forecast_split, (forecast_split.shape[0]*forecast_split.shape[1], plist['time_splits'], plist['locality']))
+        print(forecast_dataset.shape)
 
         if plist['anal_for_mix']:
             forecast_dataset[:, :-1, :] = analysis_dataset[:, :-1, :]

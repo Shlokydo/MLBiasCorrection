@@ -24,6 +24,7 @@ parser.add_argument("--epochs", "-e",  default = 200, type = int, help = "Num of
 parser.add_argument("--num_trials", "-nt",  default = 10, type = int, help = "Num of Optuna trials")
 parser.add_argument("--netcdf_dataset", "-ncdf_loc", default = "../DATA/simple_test/test_obs/test_da/assim.nc", type = str, help = "Location of the netCDF dataset")
 parser.add_argument("--optuna_study", "-os", default = "simple_test", type = str, help = "Optuna Study name")
+parser.add_argument("--optuna_sql", "-osql", default = "obs001_dt005", type = str, help = "Optuna Study name")
 parser.add_argument("--locality", "-l",  default = 9, type = int, help = "Locality size (including the main variable)")
 parser.add_argument("--degree", "-d",  default = 1, type = int, help = "To make a polynomial input")
 parser.add_argument("--normalized", "-norm",  default = 1, type = int, choices = [0, 1], help = "Use normalized dataset for training.")
@@ -67,7 +68,7 @@ def my_config(trial):
     plist['dense_output'].append(1)
 
     plist['activation'] = 'tanh'
-    plist['d_activation'] = 'linear'
+    plist['d_activation'] = 'tanh'
     plist['rec_activation'] = 'sigmoid'
     plist['l2_regu'] = 1e-5
     plist['l1_regu'] = 0.0
@@ -101,6 +102,7 @@ def my_config(trial):
     
     #Dataset and directories related settings
     plist['netCDf_loc'] = args.netcdf_dataset
+    plist['optuna_db'] = args.optuna_sql
     plist['xlocal'] = 3
     plist['locality'] = args.locality
     plist['degree'] = args.degree
@@ -146,9 +148,9 @@ if __name__ == "__main__":
     
     user = os.getlogin()
     if user == 'mshlok':
-        study = optuna.create_study(direction = 'minimize', study_name = args.optuna_study, pruner = optuna.pruners.PercentilePruner(80.0), storage = 'sqlite:///mshlok/' + str(re.search('/DATA/(.+?)/', args.netcdf_dataset).group(1)) + '.db', load_if_exists = True)
+        study = optuna.create_study(direction = 'minimize', study_name = args.optuna_study, pruner = optuna.pruners.PercentilePruner(80.0), storage = 'sqlite:///mshlok/' + args.optuna_sql + '.db', load_if_exists = True)
     elif user == 'amemiya':
-        study = optuna.create_study(direction = 'minimize', study_name = args.optuna_study, pruner = optuna.pruners.PercentilePruner(80.0), storage = 'sqlite:///amemiya/' + str(re.search('/DATA/(.+?)/', args.netcdf_dataset).group(1)) + '.db', load_if_exists = True)
+        study = optuna.create_study(direction = 'minimize', study_name = args.optuna_study, pruner = optuna.pruners.PercentilePruner(80.0), storage = 'sqlite:///amemiya/' + args.optuna_sql + '.db', load_if_exists = True)
 
     if args.t == 'optimize':
         study.optimize(objective, n_trials = args.num_trials)

@@ -130,15 +130,13 @@ def createdataset(plist):
     root_grp = Dataset(plist['netCDf_loc'], "r", format="NETCDF4")
 
     #Extrating the datasets
+    print(plist['num_timesteps'])
     analysis_init = np.array(root_grp["vam"])[:plist['num_timesteps']]
     forecast_init = np.array(root_grp["vfm"])[:plist['num_timesteps']]
-    print(np.min(analysis_init), np.max(analysis_init))
-    print(np.count_nonzero(analysis_init < 0) / (analysis_init.shape[0] * analysis_init.shape[1]))
     rmse = np.sqrt(np.mean(np.power(analysis_init - forecast_init, 2)))
     print('RMSE of Analysis - Forecast: ', rmse)
 
     d_analysis_init = analysis_init - forecast_init
-    print(np.count_nonzero(d_analysis_init > 0) / (d_analysis_init.shape[0] * d_analysis_init.shape[1]))
     
     if plist['normalized']:
         print('\nUsing Normalized Dataset.\n')
@@ -149,10 +147,9 @@ def createdataset(plist):
         std_forecast = np.ones(forecast_init.shape[1])
 
     forecast_init_norm = np.true_divide(forecast_init - ave_forecast, std_forecast) 
-    print('Forecast normalized min: ', np.min(forecast_init_norm), ' max: ', np.max(forecast_init_norm))
 
     analysis_dataset = truth_label_creator(d_analysis_init)
-    print(forecast_init_norm.shape)
+    print('Dataset shape: ', forecast_init_norm.shape)
     forecast_dataset = locality_creator(forecast_init_norm, plist['locality'], plist['xlocal'])
 
     if plist['degree'] > 1:

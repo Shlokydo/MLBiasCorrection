@@ -20,7 +20,7 @@ args = parser.parse_args()
 
 def test(plist, model, a_f, s_f, time_splits):
 
-    root_grp = Dataset(plist['netCDf_loc'], "a", format="NETCDF4")
+    root_grp = Dataset(plist['netCDf_loc'], "r", format="NETCDF4")
 
     #Extrating the datasets
     analysis_init = root_grp["vam"][25000:25000 + args.timesteps + time_splits - 1]

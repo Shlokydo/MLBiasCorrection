@@ -1,9 +1,11 @@
 from netCDF4 import Dataset
 import matplotlib.pyplot as plt
 import numpy as np
+np.random.seed(5)
 import pickle
 import helperfunctions as helpfunc
 import os
+import shutil
 
 import mlflow
 mlflow.set_tracking_uri('file:/home/mshlok/MLBiasCorrection/Python_files/mlruns_plot')
@@ -69,3 +71,5 @@ def plot_func(plist, c_forecast, analysis, forecast, c_rmse, rmse):
         mlflow.log_metric('C_RMSE', c_rmse)
         mlflow.log_metric('B_RMSE', rmse)
         mlflow.log_artifacts(image_dir)
+
+    shutil.rmtree(image_dir)
