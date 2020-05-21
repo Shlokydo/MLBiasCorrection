@@ -74,6 +74,7 @@ class Lorenz96_add:
     self.dt = dt
     self.amp = amp_add_bias
     self.amp2 = f
+    self.t = 0
     if amp_add_bias_2 is not None:
       self.amp2 = amp_add_bias_2
     self.mode = mode
@@ -103,6 +104,8 @@ class Lorenz96_add:
       self.tmpdx   += self.amp 
     if self.mode is "sin":
       self.tmpdx   += self.amp * np.sin(2*np.pi*np.arange(n)/n)
+    if self.mode is "sint":
+      self.tmpdx   += self.amp * np.sin(2*np.pi*self.t/self.amp2)
     if self.mode is "linear":
       self.tmpdx   += self.amp * self.tmpx[2:(m - 1)]
     if self.mode is "third_order":
@@ -122,6 +125,7 @@ class Lorenz96_add:
     x3  = self.x + dx3 * self.dt
     dx4 = self.dx_dt(x3)
     self.x += (dx1 + 2.0 * (dx2 + dx3) + dx4) * (self.dt / 6.0)
+    self.t += self.dt 
     return self.x
 
   def save_snap(self,ncname):
