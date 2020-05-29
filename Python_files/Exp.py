@@ -49,7 +49,7 @@ def my_config(trial):
         plist['time_splits'] = args.time_splits
         #plist['time_splits'] = trial.suggest_categorical('Time_splits', [2, 3, 4, 5, 6])
         print('\nNetwork is recurrent\n')
-        plist['num_lstm_layers'] = trial.suggest_int('lstm_layers', 2, 2)
+        plist['num_lstm_layers'] = trial.suggest_int('lstm_layers', 2, 4)
         plist['LSTM_output'] = []
         plist['LSTM_output'].append(trial.suggest_int('lstm_' + str(0), 5, 25))
         for i in range(plist['num_lstm_layers'] - 1):

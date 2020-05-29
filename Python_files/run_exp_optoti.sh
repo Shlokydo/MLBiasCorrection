@@ -6,12 +6,15 @@ then
 else
     #loc="../DATA/16_256_8_30000_en_20_obe_0.1_infl_2.8/test_obs/test_da/assim.nc"
     #loc="/home/amemiya/DATA_new/couple/obs_001/nocorr/assim.nc"
-    loc=" /home/amemiya/DATA_new/couple/obs_001_020/nocorr/assim.nc"
+    #loc=" /home/amemiya/DATA_new/couple/obs_001_020/nocorr/assim.nc"
+    #loc="/home/amemiya/DATA_new_step/step4/obs_001/nocorr/assim.nc"
+    #loc="/home/amemiya/DATA_new_step/step8/obs_001/nocorr/assim.nc"
+    loc="/home/amemiya/DATA_test_sint/test_sint/obs_001/nocorr/assim.nc"
     for i in {1..5..2} 
     do
-      ops="obs001_dt020_L2D_tanh_$i"
+      ops="sint_obs001_LD_tanh5_$i"
       echo $ops
-      python Exp.py --t $1 -e 90 -nt 30 -l $i -ts 1 -ncdf_loc $loc -tb 16284 -nbs 2 -os $ops -mr 1 -vb 4096 -norm 0 -d 1 -afm 0 -osql "obs001_dt020"
+      python Exp.py --t $1 -e 60 -nt 30 -l $i -ts 5 -ncdf_loc $loc -tb 32768 -nbs 2 -os $ops -mr 1 -vb 8192 -norm 0 -d 1 -afm 0 -osql "sint_obs001"
     done
 fi
 
