@@ -30,7 +30,6 @@ def train(trial, plist, model, checkpoint, manager, summary_writer, optimizer, t
 
     with mlflow.start_run(run_name = rname):
 
-        mlflow.log_params(plist)
         mlflow.set_tags(trial.params)
 
         with mirrored_strategy.scope():
@@ -173,7 +172,6 @@ def train(trial, plist, model, checkpoint, manager, summary_writer, optimizer, t
                         mlflow.log_metric('Val_RMSE', v_metric.numpy(), step= (plist['global_epoch']))
                         mlflow.log_metric('Train_RMSE', t_metric.numpy(), step= (plist['global_epoch']))
                         mlflow.log_metric('LearningRate', optimizer._decayed_lr(var_dtype = tf.float32).numpy(), step= (plist['global_epoch']))
-                        mlflow.log_params(plist)
 
                     if math.isnan(v_metric):
                         print('Breaking out as the validation loss is nan')

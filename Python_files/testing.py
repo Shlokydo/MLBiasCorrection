@@ -14,6 +14,7 @@ import plotting as p
 
 parser = argparse.ArgumentParser(description = 'Optuna Experiment Controller')
 
+parser.add_argument("--mlflow_exp", "-me", default = "Plots", type = str, help = "Name of the mlflow experiment log")
 parser.add_argument("--exp_name", "-en", default = "simple_test", type = str, help = "Experiment name to test on.")
 parser.add_argument("--timesteps", "-ts", default = 40, type = int, help = "Number of timesteps for testing")
 args = parser.parse_args()
@@ -23,6 +24,7 @@ def test(plist, model, a_f, s_f, time_splits):
     root_grp = Dataset(plist['netCDf_loc'], "r", format="NETCDF4")
 
     #Extrating the datasets
+    print(root_grp["vam"][:].shape)
     analysis_init = root_grp["vam"][25000:25000 + args.timesteps + time_splits - 1]
     forecast_init = root_grp["vfm"][25000:25000 + args.timesteps + time_splits - 1] 
     print(forecast_init.shape)
@@ -44,11 +46,6 @@ def test(plist, model, a_f, s_f, time_splits):
         for i in range(forecast_dataset.shape[1] - time_splits + 1):
             b_forecast = forecast_init[i + time_splits - 1,:]
             forecast = n_forecast[:, i:i + time_splits, :]
-            try:
-                if plist['anal_for_mix']:
-                    forecast[:, :-1, :] = np.expand_dims(np.transpose(np.subtract(analysis_init[i:i + time_splits - 1, :], forecast_init[i:i + time_splits - 1, :])), axis = -1)
-            except:
-                pass
             c_forecast[i + time_splits - 1, :] = np.squeeze(model(forecast, [])[0].numpy()) + b_forecast 
     else:
         for j in range(forecast_dataset.shape[1]):             
@@ -98,7 +95,7 @@ def testing(plist):
 
         print('Starting testing...')
         c_forecast, analysis, forecast, c_rmse, rmse = test(plist, model, a_f, s_f, time_splits)
-        p.plot_func(plist, c_forecast, analysis, forecast, c_rmse, rmse)
+        p.plot_func(plist, c_forecast, analysis, forecast, c_rmse, rmse, args.mlflow_exp)
         return 
 
     else:
