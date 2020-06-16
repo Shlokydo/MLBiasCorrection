@@ -95,3 +95,28 @@ def plot_func(plist, c_forecast, analysis, forecast, c_rmse, rmse, exp_name):
         mlflow.log_param('Locality', str(plist['locality']))
 
     shutil.rmtree(image_dir)
+
+def plot_func_amemiya(c_forecast, analysis, forecast, exp_name, run_name, order, locality):
+    mlflow.set_experiment(exp_name)
+
+    with mlflow.start_run(run_name = run_name):
+        
+        #Randomly select five variables for plotting
+        random_variables = np.random.randint(low = 0, high=analysis.shape[1], size=5)
+        image_dir = ('/mshlok/images')
+        if not(os.path.exists(image_dir)):
+            os.mkdir(image_dir)
+
+        for i in random_variables:
+        
+            scatter_plot((c_forecast[:,i], forecast[:,i], analysis[:,i]), i, 'Corrected_forecast', 'Biased_Forecast', 'Analysis', image_dir)
+            
+            line_plot((c_forecast[:,i], forecast[:,i], analysis[:,i]), i, image_dir)
+
+        mlflow.log_metric('C_RMSE', cal_rmse(c_forecast, analysis))
+        mlflow.log_metric('B_RMSE', cal_rmse(forecast, analysis))
+        mlflow.log_artifacts(image_dir)
+        mlflow.log_param('Order', order)
+        mlflow.log_param('Locality', locality)
+
+    shutil.rmtree(image_dir)

@@ -20,7 +20,7 @@ parser.add_argument("--timesteps", "-ts", default = 40, type = int, help = "Numb
 args = parser.parse_args()
 
 def test(plist, model, a_f, s_f, time_splits):
-
+    
     root_grp = Dataset(plist['netCDf_loc'], "r", format="NETCDF4")
 
     #Extrating the datasets
@@ -58,6 +58,9 @@ def test(plist, model, a_f, s_f, time_splits):
     print('Non-Corrected RMSE: ', rmse)
     print('Corrected RMSE: ', c_rmse)
     print(c_forecast.shape)
+
+    from scipy import stats
+    print(stats.ks_2samp(analysis_init.reshape(-1), c_forecast.reshape(-1)))
 
     return c_forecast[time_splits-1:], analysis_init[time_splits-1:], forecast_init[time_splits-1:], c_rmse, rmse
 
