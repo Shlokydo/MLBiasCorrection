@@ -120,3 +120,34 @@ def plot_func_amemiya(c_forecast, analysis, forecast, exp_name, run_name, order,
         mlflow.log_param('Locality', locality)
 
     shutil.rmtree(image_dir)
+
+def plot_func_amemiya_ef(rmse_plot, sprd_plot, time, dadir, exp_name = 'Ext_Forecast', run_name = 'test'):
+    mlflow.set_experiment(exp_name)
+
+    with mlflow.start_run(run_name = run_name):
+        
+        image_dir = ('/amemiya/images')
+        if not(os.path.exists(image_dir)):
+            os.mkdir(image_dir)
+
+        ntime=len(time)
+        doubling_time=0.2*2.1 ### 2.1 day
+        smp_e=1
+        nplt=40
+        plt.figure()
+        plt.grid(True)
+        plt.yscale('log')
+
+        for i in range(len(dadir)):
+            plt.plot(time[:nplt], rmse_plot[i][:nplt],label=dadir[i])
+
+        plt.legend(loc = 1, prop={'size': 10})
+        plt.xlabel('TIME')
+        plt.ylabel('RMSE')
+        plt.xlim()
+        plt.ylim()
+        plt.savefig(image_dir + '/rmse.png', format= 'png', dpi = 600)
+
+        mlflow.log_artifacts(image_dir)
+
+    shutil.rmtree(image_dir)
