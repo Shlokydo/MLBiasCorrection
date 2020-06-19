@@ -74,6 +74,7 @@ def my_config(trial):
     plist['l1_regu'] = 0.0
     plist['lstm_dropout'] = 0.0
     plist['rec_lstm_dropout'] = 0.0
+    plist['dense_drop'] = 0.5
 
     #Training related settings
     plist['max_checkpoint_keep'] = 3

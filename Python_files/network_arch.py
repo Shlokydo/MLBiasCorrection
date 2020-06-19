@@ -23,6 +23,7 @@ class rnn_model(tf.keras.Model):
         self.num_dense_layers = parameter_list['num_dense_layers']
         self.dense_out = parameter_list['dense_output']
         self.locality = parameter_list['locality']
+        self.dense_drop = parameter_list['dense_drop']
 
     def build(self, input_shape):
 
@@ -48,7 +49,7 @@ class rnn_model(tf.keras.Model):
                                     kernel_regularizer = self.kernel_regular,
                                     activation = self.acti_d,
                                     name = 'DENSE_{}'.format(i+1)))
-            #self.dense_list.append(tf.keras.layers.PReLU(alpha_initializer = tf.constant_initializer(0.25), shared_axes = [1], name='PReLU_{}'.format(i+1)))
+            self.dense_list.append(tf.nn.dropout(self.dense_drop))
         self.dense_list.append(tf.keras.layers.Dense(units=self.dense_out[-1],
                                             kernel_regularizer = self.kernel_regular,
                                             activation = None,
@@ -61,9 +62,9 @@ class rnn_model(tf.keras.Model):
         x = inputs
         for i in range(len(self.lstm_list)):
             try:
-                x, state_h[i], state_c[i] = self.lstm_list[i](x, initial_state = [stat[0][i], stat[1][i]])
+                x, state_h[i], state_c[i] = self.lstm_list[i](x, initial_state = [stat[0][i], stat[1][i]], training = True)
             except:
-                x, state_h[i], state_c[i] = self.lstm_list[i](x, initial_state = [state_h[i], state_c[i]])
+                x, state_h[i], state_c[i] = self.lstm_list[i](x, initial_state = [state_h[i], state_c[i]], training = True)
         
         #Only using last time-step as the input to the dense layer
         try:
