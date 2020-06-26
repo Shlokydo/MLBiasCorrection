@@ -25,12 +25,17 @@ def test(plist, model, a_f, s_f, time_splits):
 
     #Extrating the datasets
     print(root_grp["vam"][:].shape)
-    analysis_init = root_grp["vam"][25000:25000 + args.timesteps + time_splits - 1]
-    forecast_init = root_grp["vfm"][25000:25000 + args.timesteps + time_splits - 1] 
+    
+    #Subset of the Assim.nc file
+    analysis_init = root_grp["vam"][27000:27000 + args.timesteps + time_splits - 1]
+    forecast_init = root_grp["vfm"][27000:27000 + args.timesteps + time_splits - 1] 
     print(forecast_init.shape)
 
+    #Creating the required locality 
     forecast_dataset = helpfunc.locality_creator(forecast_init, plist['locality'], plist['xlocal'])
     print(forecast_dataset.shape)
+
+    #Useless part########
     if plist['degree'] > 1:
         if plist['locality'] == 1:
             forecast_dataset = helpfunc.make_poly(np.squeeze(forecast_dataset), plist['degree'])
@@ -41,17 +46,12 @@ def test(plist, model, a_f, s_f, time_splits):
     
     n_forecast = np.divide(np.subtract(forecast_dataset, a_f), s_f)
     c_forecast = np.zeros((analysis_init.shape[0], analysis_init.shape[1]), dtype='float32')
+    ##################
 
-    if plist['make_recurrent']:
-        for i in range(forecast_dataset.shape[1] - time_splits + 1):
-            b_forecast = forecast_init[i + time_splits - 1,:]
-            forecast = n_forecast[:, i:i + time_splits, :]
-            c_forecast[i + time_splits - 1, :] = np.squeeze(model(forecast, [])[0].numpy()) + b_forecast 
-    else:
-        for j in range(forecast_dataset.shape[1]):             
-            b_forecast = forecast_init[j,:]
-            forecast = n_forecast[:,j,:]
-            c_forecast[j,:] = np.squeeze(model(forecast, [])[0].numpy()) + b_forecast
+    for i in range(forecast_dataset.shape[1] - time_splits + 1): #Fds[1] = 400 + 3 - 1 = 402 | 400 
+        b_forecast = forecast_init[i + time_splits - 1,:] # Biased forecast
+        forecast = n_forecast[:, i:i + time_splits, :] #Forecast for network
+        c_forecast[i + time_splits - 1, :] = np.squeeze(model(forecast, [])[0].numpy()) + b_forecast #Corrected forecast  
     
     c_rmse = np.sqrt(np.mean(np.power(analysis_init[time_splits-1:] - c_forecast[time_splits-1:], 2)))
     rmse = np.sqrt(np.mean(np.power(analysis_init - forecast_init, 2)))
