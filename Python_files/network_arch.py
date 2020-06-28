@@ -49,7 +49,6 @@ class rnn_model(tf.keras.Model):
                                     kernel_regularizer = self.kernel_regular,
                                     activation = self.acti_d,
                                     name = 'DENSE_{}'.format(i+1)))
-            self.dense_list.append(tf.nn.dropout(self.dense_drop))
         self.dense_list.append(tf.keras.layers.Dense(units=self.dense_out[-1],
                                             kernel_regularizer = self.kernel_regular,
                                             activation = None,

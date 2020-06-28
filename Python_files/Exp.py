@@ -8,6 +8,7 @@ import sys
 import shutil
 import argparse
 import re
+import math
 
 import helperfunctions as helpfunc
 import training_test as tntt
@@ -74,7 +75,7 @@ def my_config(trial):
     plist['l1_regu'] = 0.0
     plist['lstm_dropout'] = 0.0
     plist['rec_lstm_dropout'] = 0.0
-    plist['dense_drop'] = 0.5
+    plist['dense_drop'] = 0.0
 
     #Training related settings
     plist['max_checkpoint_keep'] = 3
@@ -85,7 +86,7 @@ def my_config(trial):
     plist['global_batch_size'] = args.train_batch  
     plist['global_batch_size_v'] = args.val_batch
     plist['val_size'] = 1 * plist['global_batch_size_v']
-    plist['num_timesteps'] = int(((plist['global_batch_size'] * args.num_batches + plist['val_size']) * plist['time_splits'])/ 16 + 100)
+    plist['num_timesteps'] = math.ceil(((plist['global_batch_size'] * args.num_batches + plist['val_size']) + 16 * plist['time_splits'])/ 16 + 100)
     plist['val_min'] = 1000
 
     plist['lr_decay_steps'] = 1000

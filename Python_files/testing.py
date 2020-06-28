@@ -1,9 +1,12 @@
+import os
+os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"]=""  # specify which GPU(s) to be used
+
 import tensorflow as tf
 import numpy as np
 from netCDF4 import Dataset
 import time
 import math
-import os
 import sys
 import argparse
 
@@ -25,10 +28,8 @@ def test(plist, model, a_f, s_f, time_splits):
 
     #Extrating the datasets
     print(root_grp["vam"][:].shape)
-    
-    #Subset of the Assim.nc file
-    analysis_init = root_grp["vam"][27000:27000 + args.timesteps + time_splits - 1]
-    forecast_init = root_grp["vfm"][27000:27000 + args.timesteps + time_splits - 1] 
+    analysis_init = root_grp["vam"][7000:7000 + args.timesteps + time_splits - 1]
+    forecast_init = root_grp["vfm"][7000:7000 + args.timesteps + time_splits - 1] 
     print(forecast_init.shape)
 
     #Creating the required locality 

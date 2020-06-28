@@ -51,12 +51,12 @@ def split_sequences(sequences, n_steps):
     X = list()
     for i in range(sequences.shape[1]):
         # find the end of this pattern
-        end_ix = i*n_steps + n_steps
+        end_ix = i + n_steps
         # check if we are beyond the dataset
         if end_ix > sequences.shape[1]:
             break
         # gather input and output parts of the pattern
-        seq_x = sequences[:,i*n_steps:end_ix, :]
+        seq_x = sequences[:,i:end_ix, :]
         X.append(seq_x)
     return np.array(X)
 
