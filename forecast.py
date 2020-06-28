@@ -36,13 +36,19 @@ bc_alpha = param.param_bc['alpha']
 bc_gamma = param.param_bc['gamma']
 
 intv_nature=int(dt_nature/dt)
+intv_assim=int(dt_assim/dt)
 
 #inittime=int(sys.argv[1])
-length=200
-nsmpmax=20
-intv=250
-inittime=4500+250   ### spinup
 
+length=80
+nsmpmax=100
+intv=250
+inittime=4501   ### spinup
+if (dt_assim == 0.2):
+  length=20
+  nsmpmax=100
+  intv=60
+  inittime=1001   ### spinup  
 #------------------------------------------------
 
 letkf = letkf.LETKF(model.Lorenz96, nx, f, amp_const_bias = amp, k = nmem, localization_len = loc_scale, localization_cut = loc_cutoff , inflation = fact_infl)
@@ -75,6 +81,11 @@ while ((inittime+length <= assim_length) and (ismp < nsmpmax)) :
 
   bc=BC.BiasCorrection(bc_type,nx,bc_alpha,bc_gamma)
 
+ ### spinup of LSTM
+ if bc_type is 'tf':
+   for i in range(100):  
+     xftemp = bc.correct(analysis[inittime-99+i,:,:])
+ 
   xf=[]
   xfm=[]
   xfm_raw=[]
@@ -89,31 +100,49 @@ while ((inittime+length <= assim_length) and (ismp < nsmpmax)) :
   sprd.append(math.sqrt((letkf.sprd()**2).sum()/nx))
 # 
 
+  length_nature=int(length*dt_assim/dt_nature)
+
 # MAIN LOOP
-  for step in range(inittime_nature, inittime_nature+length):
+  for step in range(inittime_nature, inittime_nature+length_nature):
     for i in range(intv_nature):
       letkf.forward()
       if param.param_bc['correct_step'] is not None:
-        for i in range(nmem):
+        for j in range(nmem):
           fact=1.0/intv_assim
-          letkf.ensemble[i].x = fact * bc.correct(letkf.ensemble[i].x) + (1.0-fact) * letkf.ensemble[i].x
+          letkf.ensemble[j].x = fact * bc.correct(letkf.ensemble[j].x) + (1.0-fact) * letkf.ensemble[j].x
    
-    xfmtemp=letkf.mean()
-    xfm_raw.append(xfmtemp)
-    if param.param_bc['correct_step'] is not None:
-       for i in range(nmem):
+    if (np.count_nonzero(time_assim == time_nature[step+1])): 
+      step_assim=int(np.where(time_assim == time_nature[step+1])[0])
+      xfmtemp=letkf.mean()
+      xfmtempb=letkf.mean()
+      xfm_raw.append(xfmtemp)
+      if param.param_bc['correct_step'] is not None:
+         for j in range(nmem):
             fact=1.0/intv_assim
-            letkf.ensemble[i].x = fact * bc.correct(letkf.ensemble[i].x) + (1.0-fact) * letkf.ensemble[i].x
-    else:
-       for i in range(nmem):
-            letkf.ensemble[i].x = bc.correct(letkf.ensemble[i].x)
+            letkf.ensemble[j].x = fact * bc.correct(letkf.ensemble[j].x) + (1.0-fact) * letkf.ensemble[j].x
+      else:
+#       for i in range(nmem):
+#           letkf.ensemble[i].x = bc.correct(letkf.ensemble[i].x)
+         net_array = np.stack([letkf.ensemble[j].x for j in range(nmem)])
+#       xftemp = bc.correct(net_array).reshape(nmem, nx)
+         xftemp = bc.correct(net_array)
+         for j in range(nmem):
+           letkf.ensemble[j].x = xftemp[j]
  
-    xf.append(letkf.members())
-    xfmtemp=letkf.mean()
-    xfm.append(xfmtemp)
+ 
+      xf.append(letkf.members())
+      xfmtemp=letkf.mean()
+      xfm.append(xfmtemp)
 
-    rmse.append(math.sqrt(((letkf.mean()-nature[step+1])**2).sum() /nx))
-    sprd.append(math.sqrt((letkf.sprd()**2).sum()/nx))
+      rmsetemp = math.sqrt(((letkf.mean()-nature[step+1])**2).sum() /nx)
+      rmseraw = math.sqrt(((xfmtempb-nature[step+1])**2).sum() /nx)
+      sprdtemp = math.sqrt((letkf.sprd()**2).sum()/nx)
+#    if ( round(step/1,4).is_integer() and step-inittime_nature < 10 ):
+      if ( step-inittime_nature < 10 ):
+        print('time ', round(time_nature[step],4),' RMSE ', round(rmsetemp,4), ' RMSE(raw) ', round(rmseraw,4), ' SPRD ', round(sprdtemp,4) )
+#          print('time ', round(time_obs[step_obs],4),' RMSE ', rmse,' SPRD ',sprd)
+      rmse.append(math.sqrt(((letkf.mean()-nature[step+1])**2).sum() /nx))
+      sprd.append(math.sqrt((letkf.sprd()**2).sum()/nx))
 #  if ( round(icount/10,4).is_integer() ):
 #  print("time {0:10.4f}, RMSE , {1:8.4f}, SPRD ,{2:8.4f}".format(round(time_nature[step],4),rmse[step-inittime_nature],sprd[step-inittime_nature]))
         
@@ -128,16 +157,19 @@ while ((inittime+length <= assim_length) and (ismp < nsmpmax)) :
 rmsesmp  = np.array(rmsesmp,  dtype=np.float64)
 sprdsmp  = np.array(sprdsmp,  dtype=np.float64)
 
+
+print(rmsesmp.shape)
+
 if (os.path.isfile(expdir + '/' + obsdir + '/' + dadir + '/stats.nc')) :
     print('overwrite')
-    nc = netCDF4.Dataset(expdir + '/' + obsdir + '/' + dadir + '/stats.nc','r+',format='NETCDF3_CLASSIC')
+    nc = netCDF4.Dataset(expdir + '/' + obsdir + '/' + dadir + '/stats.nc','r+',format='NETCDF4')
     nsmp=len(nc.variables['rmse'])
     nc.variables['rmse'][nsmp:,:]=rmsesmp
     nc.variables['sprd'][nsmp:,:]=sprdsmp
     nc.close
 else : 
     print('create')
-    nc = netCDF4.Dataset(expdir + '/' + obsdir + '/' + dadir + '/stats.nc','w',format='NETCDF3_CLASSIC')
+    nc = netCDF4.Dataset(expdir + '/' + obsdir + '/' + dadir + '/stats.nc','w',format='NETCDF4')
     nc.createDimension('t',length+1)
     nc.createDimension('s',None)
     rmse_in = nc.createVariable('rmse',np.dtype('float64').char,('s','t'))

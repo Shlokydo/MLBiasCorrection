@@ -9,11 +9,28 @@ import matplotlib.pyplot as plt
 ### config
 nx  = param.param_model['dimension'] 
 
-expdir = param.param_exp['expdir']
-obsdir = param.param_exp['obs_type']
+#expdir = param.param_exp['expdir']
+#obsdir = param.param_exp['obs_type']
 #dadir  = param.param_exp['da_type']
 
-dadir=('nocorr','linear_offline','test_tf')
+expdir='./DATA/sint_x10_testdata'
+
+#obsdir='obs_001_020'
+obsdir='obs_001'
+
+#dadir=('nocorr','LD_tanh10_5')
+#dadir=('nocorr','linear_offline')
+#dadir=('nocorr','linear_offline','linear4_offline','D_tanh_5','L2D_tanh_5')
+#dadir=('nocorr','linear_offline','D_tanh_5','L2D_tanh_5')
+#dadir=('nocorr','linear_offline','D_tanh_3','L2D_tanh_3','D_tanh_5','L2D_tanh_5')
+dadir=('nocorr','CLD_tanh5_5','CLD_tanh7_5','CLD_tanh10_5')
+
+legends = ('nocorr','LSTM(5)','LSTM(7)','LSTM(10)')
+#legends = ('nocorr','linear','4th poly','Dense-5','LSTM-5')
+#legends = ('nocorr','linear','Dense-5','LSTM-5','Dense-3','LSTM-3')
+#lstyles = ('solid','dotted',(0,(1,4)),'dashed','dashdot')
+lstyles = ('solid','dashdot',(0,(3,5,1,5)),(0,(3,2,1,2)))
+
 
 #------------------------------------------------
 
@@ -52,7 +69,7 @@ plt.yscale('log')
 #plt.scatter(test_labels, test_predictions)
 #plt.scatter(fcst[ntime-100:ntime,1], anal[ntime-100:ntime,1]-fcst[ntime-100:ntime,1])
 for i in range(nexp):
-  plt.plot(time[:nplt], rmse_plot[i][:nplt],label=dadir[i])
+  plt.plot(time[:nplt], rmse_plot[i][:nplt],label=legends[i],linestyle=lstyles[i])
 # plt.plot(time, sprd_plot)
 
 plt.legend(bbox_to_anchor=(0.99,0.01), loc='lower right', borderaxespad=0,fontsize=14)
@@ -66,6 +83,6 @@ plt.ylim()
 #plt.xlim([0,plt.xlim()[1]])
 #plt.ylim([0,plt.ylim()[1]])
 #_ = plt.plot([-100, 100], [-100, 100])
-plt.savefig('rmse.png')
+plt.savefig('rmse.png', dpi = 400, bbox='tight')
 ###
 

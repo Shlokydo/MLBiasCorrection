@@ -7,7 +7,7 @@ import netCDF4
 import model
 import letkf
 import param
-import bias_correction as BC
+import bias_correction_ext as BC
 
 #------------------------------------------------
 ### config
@@ -75,11 +75,13 @@ ntime_nature=len(time_nature)
 
 bc=BC.BiasCorrection(bc_type,nx,bc_alpha,bc_gamma)
 
-icount=-10
+icount=-100
 rmse_mean=0
 
+plot_count=0
+
 # MAIN LOOP
-for step in range(ntime_nature):
+for step in range(min(ntime_nature,length-1)):
   for i in range(intv_nature):
     letkf.forward()
     if param.param_bc['correct_step'] is not None:
@@ -92,13 +94,25 @@ for step in range(ntime_nature):
       if (step + 1) < length:
         xfmtempb=letkf.mean()
         xfm_raw.append(xfmtempb)
-        if param.param_bc['correct_step'] is not None:
-          for i in range(nmem):
-            fact=1.0/intv_assim
-            letkf.ensemble[i].x = fact * bc.correct(letkf.ensemble[i].x) + (1.0-fact) * letkf.ensemble[i].x
-        else:
-          for i in range(nmem):
-            letkf.ensemble[i].x = bc.correct(letkf.ensemble[i].x)
+        if (step > 1): 
+          if param.param_bc['correct_step'] is not None:
+            for i in range(nmem):
+              fact=1.0/intv_assim
+              letkf.ensemble[i].x = fact * bc.correct(letkf.ensemble[i].x) + (1.0-fact) * letkf.ensemble[i].x
+          else:
+#            print('bef',letkf.mean()[0:2])
+#            for i in range(nmem):
+#              letkf.ensemble[i].x = bc.correct(letkf.ensemble[i].x)
+#            print('aft',letkf.mean()[0:2])
+#            print('obs',obs[step_obs,0:2])
+
+#             net_array = np.concatenate([letkf.ensemble[i].x for i in range(nmem)])
+             net_array = np.stack([letkf.ensemble[i].x for i in range(nmem)])
+#            xftemp = bc.correct(net_array).reshape(nmem, nx)
+             xftemp = bc.correct(net_array)
+
+             for i in range(nmem):
+               letkf.ensemble[i].x = xftemp[i]
 
         xf.append(letkf.members())
         xfmtemp=letkf.mean()
@@ -112,14 +126,20 @@ for step in range(ntime_nature):
 
         if param.param_bc['offline'] is None  : bc.train(xfmtemp,xamtemp)  
 
+        dfa  = np.sqrt(np.mean(np.power(xfmtemp-xamtemp, 2)))
+        dfar = np.sqrt(np.mean(np.power(xfmtempb-xamtemp, 2)))
+        dfn  = np.sqrt(np.mean(np.power(xfmtempb-nature[step], 2)))
+
         rmse = math.sqrt(((letkf.mean()-nature[step])**2).sum() /nx)
         sprd = math.sqrt((letkf.sprd()**2).sum()/nx)
-        if ( round(icount/10,4).is_integer() ):
-          print('time ', round(time_obs[step_obs],4),' RMSE ', rmse,' SPRD ',sprd)
+        if ( round(icount/9,4).is_integer() ):
+          print('time ', round(time_obs[step_obs],4),' RMSE ', round(rmse,4), ' f-a ', round(dfa,4), ' f-a(raw) ', round(dfar,4), ' f-n(raw) ', round(dfn,4), ' SPRD ', round(sprd,4) )
+#          print('time ', round(time_obs[step_obs],4),' RMSE ', rmse,' SPRD ',sprd)
         icount = icount+1
         if (icount > 0):
           rmse_mean = (rmse + (icount-1) * rmse_mean)  / icount
-        
+#          if ( round((icount-1)/1,4).is_integer() ):
+#            print(' RMSE ', rmse ,' RMSE_mean ', rmse_mean )
 
 time_assim = np.array(time_assim, dtype=np.float64)
 xf  = np.array(xf,  dtype=np.float64)
@@ -140,7 +160,7 @@ print("done")
 
 os.system('mkdir -p ' + expdir + '/' + obsdir + '/' + dadir)
  
-nc = netCDF4.Dataset(expdir + '/' + obsdir + '/' + dadir + '/assim.nc','w',format='NETCDF3_CLASSIC')
+nc = netCDF4.Dataset(expdir + '/' + obsdir + '/' + dadir + '/assim.nc','w',format='NETCDF4')
 nc.createDimension('x',nx)
 nc.createDimension('e',nmem)
 nc.createDimension('t',None)
