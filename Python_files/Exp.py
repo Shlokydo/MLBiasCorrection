@@ -34,6 +34,7 @@ parser.add_argument("--time_splits", "-ts",  default = 5, type = int, help = "Nu
 parser.add_argument("--train_batch", "-tb", default = 16384, type = int, help = "Training batch size")
 parser.add_argument("--val_batch", "-vb", default = 16384, type = int, help = "Validation batch size")
 parser.add_argument("--num_batches", "-nbs",  default = 1, type = int, help = "Number of training batch per epoch")
+parser.add_argument("--num_state_space", "-nss",  default = 8, type = int, help = "State space size")
 args = parser.parse_args()
 
 if (args.locality > 1) and (args.degree > 1):
@@ -86,7 +87,7 @@ def my_config(trial):
     plist['global_batch_size'] = args.train_batch  
     plist['global_batch_size_v'] = args.val_batch
     plist['val_size'] = 1 * plist['global_batch_size_v']
-    plist['num_timesteps'] = math.ceil(((plist['global_batch_size'] * args.num_batches + plist['val_size']) + 16 * plist['time_splits'])/ 16 + 100)
+    plist['num_timesteps'] = math.ceil(((plist['global_batch_size'] * args.num_batches + plist['val_size']) + args.num_state_space * plist['time_splits'])/ args.num_state_space + 100)
     plist['val_min'] = 1000
 
     plist['lr_decay_steps'] = 1000

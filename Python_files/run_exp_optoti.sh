@@ -2,19 +2,16 @@
 
 if [ $1 = test ]
 then
-    python testing.py -en $2 -ts $3
+    python testing.py -en $2 -ts $3 -me $4
 else
-    #loc="../DATA/16_256_8_30000_en_20_obe_0.1_infl_2.8/test_obs/test_da/assim.nc"
-    #loc="/home/amemiya/DATA_new/couple/obs_001/nocorr/assim.nc"
-    #loc=" /home/amemiya/DATA_new/couple/obs_001_020/nocorr/assim.nc"
-    #loc="/home/amemiya/DATA_new_step/step4/obs_001/nocorr/assim.nc"
-    #loc="/home/amemiya/DATA_new_step/step8/obs_001/nocorr/assim.nc"
-    loc="/home/amemiya/DATA_test_sint/test_sint/obs_001/nocorr/assim.nc"
-    for i in {1..5..2} 
+    #loc="/home/amemiya/python/MLBiasCorrection/DATA/coupled_A13/obs_010/nocorr/assim.nc"
+    loc="/home/amemiya/python/MLBiasCorrection/DATA/coupled_A13/obs_p6_010/nocorr/assim.nc"
+    for i in 1 3 5 
     do
-      ops="sint_obs001_LD_tanh5_$i"
+      ops="coupled_A13_p6_LD_tanh10_$i"
       echo $ops
-      python Exp.py --t $1 -e 60 -nt 30 -l $i -ts 5 -ncdf_loc $loc -tb 32768 -nbs 2 -os $ops -mr 1 -vb 8192 -norm 0 -d 1 -afm 0 -osql "sint_obs001"
+      python Exp.py --t $1 -e 30 -nt 30 -l $i -ts 10 -ncdf_loc $loc -tb 32768 -nbs 1 -os $ops -mr 1 -vb 2048 -norm 0 -d 1 -afm 0 -osql "coupled_A13"
+      python Exp.py --t best -e 300 -nt 30 -l $i -ts 10 -ncdf_loc $loc -tb 32768 -nbs 1 -os $ops -mr 1 -vb 2048 -norm 0 -d 1 -afm 0 -osql "coupled_A13"
     done
 fi
 

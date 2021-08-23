@@ -70,8 +70,8 @@ def testing(plist):
     print('\nGPU Available: {}\n'.format(tf.test.is_gpu_available()))
 
     #Get the Model
-    a_f = tf.Variable(tf.zeros(16, dtype = tf.float32))
-    s_f = tf.Variable(tf.zeros(16, dtype = tf.float32))
+    a_f = tf.Variable(tf.zeros(8, dtype = tf.float32))
+    s_f = tf.Variable(tf.zeros(8, dtype = tf.float32))
     time_splits = tf.Variable(0)
     model = net.rnn_model(plist)
 

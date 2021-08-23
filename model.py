@@ -250,4 +250,42 @@ class Lorenz96_coupled:
     self.xx = np.array(nc.variables['vv'][:], dtype=type(np.float64))
     nc.close 
 
+class Lorenz96_coupled_farfield(Lorenz96_coupled):
 
+  """
+  This class provides the coupled Lorenz96 model equations for far-field effects and the 4th-order Runge-Kutta solver.
+  """
+  def __init__(self, nx = 40, nxx = 1600, f = 8, dt = 0.005, h = 1, b = 10, c = 10, init_x = None, init_xx= None ):
+    super(Lorenz96_coupled_farfield, self).__init__(nx = 40, nxx = 1600, f = 8, dt = 0.005, h = 1, b = 10, c = 10, init_x = None, init_xx= None)
+
+
+  def dx_dt(self, y, yy):
+    nx = y.shape[0]
+    nxx = yy.shape[0]
+
+    m = nx + 3
+    self.tmpx[2:(m - 1)] = y
+    # cyclic boundary condition
+    self.tmpx[0:2] = y[(nx - 2):nx]
+    self.tmpx[m - 1] = y[0]
+
+    mm = nxx + 3
+    self.tmpxx[1:(mm - 2)] = yy
+    # cyclic boundary condition
+    self.tmpxx[0] = yy[nxx - 1]
+    self.tmpxx[(mm - 2):mm] = yy[0:2]
+
+    #self.tmpdx = (self.tmpx[3:m] - self.tmpx[0:(m - 3)]) * self.tmpx[1:(m - 2)] - self.tmpx[2:(m - 1)] + self.f
+    self.tmpdx[:] = self.tmpx[3:m]
+    self.tmpdx   -= self.tmpx[0:(m - 3)]
+    self.tmpdx   *= self.tmpx[1:(m - 2)]
+    self.tmpdx   -= self.tmpx[2:(m - 1)]
+    self.tmpdx   += self.f
+    self.tmpdx   -= self.h * self.c / self.b * np.dot(self.coupler,yy.astype('float64'))
+
+    self.tmpdxx[:] = self.tmpxx[0:(mm - 3)]
+    self.tmpdxx   -= self.tmpxx[3:mm]
+    self.tmpdxx   *= self.c * self.b * self.tmpxx[2:(mm - 1)]
+    self.tmpdxx   -= self.c * self.tmpxx[1:(mm - 2)]
+    self.tmpdxx   += self.h * self.c / self.b * np.dot(y.astype('float64'),self.coupler)
+    return self.tmpdx, self.tmpdxx
