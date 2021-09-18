@@ -1,6 +1,6 @@
 # python_LETKF
 
-These codes are originally developed by Shigenori Otsuka ([https://github.com/otsuka-shigenori/da_demo](https://github.com/otsuka-shigenori/da_demo))
+Codes for LETKF are originally developed by Shigenori Otsuka ([https://github.com/otsuka-shigenori/da_demo](https://github.com/otsuka-shigenori/da_demo))
 
 ## index
 ```
